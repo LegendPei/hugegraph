@@ -130,12 +130,13 @@ public class CountStrategyCoreTest extends BaseCoreTest {
     public void testRepeatAfterTextRangeFilterWithEmptyResult() {
         SchemaManager schema = graph().schema();
         schema.propertyKey("vp4").asText().create();
-        schema.vertexLabel("vl1").properties("vp4")
-              .nullableKeys("vp4").create();
+        schema.propertyKey("age").asInt().create();
+        schema.vertexLabel("vl1").properties("vp4", "age")
+              .nullableKeys("vp4", "age").create();
         schema.edgeLabel("el2").link("vl1", "vl1").create();
 
-        Vertex v1 = graph().addVertex(T.label, "vl1", "vp4", "a");
-        Vertex v2 = graph().addVertex(T.label, "vl1", "vp4", "b");
+        Vertex v1 = graph().addVertex(T.label, "vl1", "vp4", "a", "age", 1);
+        Vertex v2 = graph().addVertex(T.label, "vl1", "vp4", "b", "age", 2);
         v1.addEdge("el2", v2);
         commitTx();
 
@@ -146,6 +147,58 @@ public class CountStrategyCoreTest extends BaseCoreTest {
                              .match(__.as("start").has("vp4", P.lt(""))
                                       .out("el2").as("m"))
                              .select("m").count().next();
+
+        Assert.assertEquals(0L, direct);
+        Assert.assertEquals(viaMatch, direct);
+    }
+
+    @Test
+    public void testTextRangeFilterDoesNotStopLaterGraphHasExtraction() {
+        SchemaManager schema = graph().schema();
+        schema.propertyKey("vp4").asText().create();
+        schema.propertyKey("age").asInt().create();
+        schema.vertexLabel("vl1").properties("vp4", "age")
+              .nullableKeys("vp4", "age").create();
+
+        graph().addVertex(T.label, "vl1", "vp4", "a", "age", 1);
+        graph().addVertex(T.label, "vl1", "vp4", "b", "age", 2);
+        commitTx();
+
+        long direct = graph().traversal().V()
+                           .has("vp4", P.lt(""))
+                           .has("age", 1)
+                           .count().next();
+        long viaMatch = graph().traversal().V()
+                             .match(__.as("v").has("vp4", P.lt(""))
+                                      .has("age", 1))
+                             .select("v").count().next();
+
+        Assert.assertEquals(0L, direct);
+        Assert.assertEquals(viaMatch, direct);
+    }
+
+    @Test
+    public void testTextRangeFilterDoesNotStopLaterVertexHasExtraction() {
+        SchemaManager schema = graph().schema();
+        schema.propertyKey("vp4").asText().create();
+        schema.propertyKey("age").asInt().create();
+        schema.vertexLabel("vl1").properties("vp4", "age")
+              .nullableKeys("vp4", "age").create();
+        schema.edgeLabel("el2").link("vl1", "vl1").create();
+
+        Vertex v1 = graph().addVertex(T.label, "vl1", "vp4", "a", "age", 1);
+        Vertex v2 = graph().addVertex(T.label, "vl1", "vp4", "b", "age", 2);
+        v1.addEdge("el2", v2);
+        commitTx();
+
+        long direct = graph().traversal().V(v1.id()).out("el2")
+                           .has("vp4", P.lt(""))
+                           .has("age", 2)
+                           .count().next();
+        long viaMatch = graph().traversal().V(v1.id()).out("el2")
+                             .match(__.as("v").has("vp4", P.lt(""))
+                                      .has("age", 2))
+                             .select("v").count().next();
 
         Assert.assertEquals(0L, direct);
         Assert.assertEquals(viaMatch, direct);

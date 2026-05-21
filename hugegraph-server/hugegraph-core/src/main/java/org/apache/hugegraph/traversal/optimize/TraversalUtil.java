@@ -197,33 +197,39 @@ public final class TraversalUtil {
     private static boolean extractHasContainers(HugeGraphStep<?, ?> newStep,
                                                 HasContainerHolder holder) {
         HugeGraph graph = TraversalUtil.tryGetGraph(newStep);
-        Iterator<HasContainer> iterator = holder.getHasContainers().iterator();
-        while (iterator.hasNext()) {
-            HasContainer has = iterator.next();
-            if (!canExtractHasContainer(graph, has)) {
-                continue;
-            }
+        List<HasContainer> hasContainers = holder.getHasContainers();
+        if (!canExtractHasContainers(graph, hasContainers)) {
+            return false;
+        }
+        for (HasContainer has : hasContainers) {
             if (!GraphStep.processHasContainerIds(newStep, has)) {
                 newStep.addHasContainer(has);
             }
-            iterator.remove();
         }
-        return holder.getHasContainers().isEmpty();
+        return true;
     }
 
     private static boolean extractHasContainers(HugeVertexStep<?> newStep,
                                                 HasContainerHolder holder) {
         HugeGraph graph = TraversalUtil.tryGetGraph(newStep);
-        Iterator<HasContainer> iterator = holder.getHasContainers().iterator();
-        while (iterator.hasNext()) {
-            HasContainer has = iterator.next();
-            if (!canExtractHasContainer(graph, has)) {
-                continue;
-            }
-            newStep.addHasContainer(has);
-            iterator.remove();
+        List<HasContainer> hasContainers = holder.getHasContainers();
+        if (!canExtractHasContainers(graph, hasContainers)) {
+            return false;
         }
-        return holder.getHasContainers().isEmpty();
+        for (HasContainer has : hasContainers) {
+            newStep.addHasContainer(has);
+        }
+        return true;
+    }
+
+    private static boolean canExtractHasContainers(HugeGraph graph,
+                                                   List<HasContainer> hasContainers) {
+        for (HasContainer has : hasContainers) {
+            if (!canExtractHasContainer(graph, has)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean canExtractHasContainer(HugeGraph graph,

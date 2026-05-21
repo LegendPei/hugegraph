@@ -17,14 +17,30 @@
 
 package org.apache.hugegraph.unit.core;
 
+import java.lang.reflect.Method;
+
 import org.apache.hugegraph.HugeException;
+import org.apache.hugegraph.HugeGraph;
 import org.apache.hugegraph.testutil.Assert;
 import org.apache.hugegraph.traversal.optimize.TraversalUtil;
 import org.apache.hugegraph.util.DateUtil;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.junit.Test;
 
 public class TraversalUtilTest {
+
+    @Test
+    public void testCanExtractHasContainerWithoutGraph() throws Exception {
+        Method method = TraversalUtil.class.getDeclaredMethod(
+                "canExtractHasContainer", HugeGraph.class, HasContainer.class);
+        method.setAccessible(true);
+
+        Assert.assertTrue((Boolean) method.invoke(
+                null, null, new HasContainer("~label", P.eq("person"))));
+        Assert.assertFalse((Boolean) method.invoke(
+                null, null, new HasContainer("name", P.eq("marko"))));
+    }
 
     @Test
     public void testParsePredicate() {
