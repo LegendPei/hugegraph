@@ -171,6 +171,10 @@ public final class TraversalUtil {
             step = step.getNextStep();
             if (step instanceof HasStep) {
                 HasContainerHolder holder = (HasContainerHolder) step;
+                if (!canExtractHasContainers(TraversalUtil.getGraph(newStep),
+                                             holder.getHasContainers())) {
+                    break;
+                }
                 for (HasContainer has : holder.getHasContainers()) {
                     if (!GraphStep.processHasContainerIds(newStep, has)) {
                         newStep.addHasContainer(has);
@@ -188,6 +192,10 @@ public final class TraversalUtil {
         do {
             if (step instanceof HasStep) {
                 HasContainerHolder holder = (HasContainerHolder) step;
+                if (!canExtractHasContainers(TraversalUtil.getGraph(newStep),
+                                             holder.getHasContainers())) {
+                    break;
+                }
                 for (HasContainer has : holder.getHasContainers()) {
                     newStep.addHasContainer(has);
                 }
@@ -196,6 +204,39 @@ public final class TraversalUtil {
             }
             step = step.getNextStep();
         } while (step instanceof HasStep || step instanceof NoOpBarrierStep);
+    }
+
+    private static boolean canExtractHasContainers(HugeGraph graph,
+                                                   List<HasContainer> hasContainers) {
+        for (HasContainer has : hasContainers) {
+            if (!canExtractHasContainer(graph, has)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean canExtractHasContainer(HugeGraph graph,
+                                                  HasContainer has) {
+        if (isSysProp(has.getKey())) {
+            return true;
+        }
+
+        PropertyKey pkey = graph.propertyKey(has.getKey());
+        if (!pkey.dataType().isText()) {
+            return true;
+        }
+
+        List<P<Object>> predicates = new ArrayList<>();
+        collectPredicates(predicates, ImmutableList.of(has.getPredicate()));
+        for (P<Object> pred : predicates) {
+            BiPredicate<?, ?> bp = pred.getBiPredicate();
+            if (bp == Compare.gt || bp == Compare.gte ||
+                bp == Compare.lt || bp == Compare.lte) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static void extractOrder(Step<?, ?> newStep,

@@ -125,4 +125,29 @@ public class CountStrategyCoreTest extends BaseCoreTest {
 
         Assert.assertEquals(4L, count);
     }
+
+    @Test
+    public void testRepeatAfterTextRangeFilterWithEmptyResult() {
+        SchemaManager schema = graph().schema();
+        schema.propertyKey("vp4").asText().create();
+        schema.vertexLabel("vl1").properties("vp4")
+              .nullableKeys("vp4").create();
+        schema.edgeLabel("el2").link("vl1", "vl1").create();
+
+        Vertex v1 = graph().addVertex(T.label, "vl1", "vp4", "a");
+        Vertex v2 = graph().addVertex(T.label, "vl1", "vp4", "b");
+        v1.addEdge("el2", v2);
+        commitTx();
+
+        long direct = graph().traversal().V().has("vp4", P.lt(""))
+                           .repeat(__.out("el2")).emit().times(1)
+                           .count().next();
+        long viaMatch = graph().traversal().V()
+                             .match(__.as("start").has("vp4", P.lt(""))
+                                      .out("el2").as("m"))
+                             .select("m").count().next();
+
+        Assert.assertEquals(0L, direct);
+        Assert.assertEquals(viaMatch, direct);
+    }
 }
