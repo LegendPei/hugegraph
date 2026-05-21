@@ -17,9 +17,16 @@
 
 package org.apache.hugegraph.traversal.optimize;
 
+import java.util.Collections;
+
 import org.apache.hugegraph.HugeGraph;
+import org.apache.hugegraph.backend.id.Id;
+import org.apache.hugegraph.backend.id.IdGenerator;
 import org.apache.hugegraph.exception.NotFoundException;
+import org.apache.hugegraph.schema.IndexLabel;
+import org.apache.hugegraph.schema.PropertyKey;
 import org.apache.hugegraph.testutil.Assert;
+import org.apache.hugegraph.type.define.DataType;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.junit.Test;
@@ -31,6 +38,8 @@ public class TraversalUtilOptimizeTest {
     public void testCanExtractHasContainerWithoutGraph() {
         Assert.assertTrue(TraversalUtil.canExtractHasContainer(
                 null, new HasContainer("~label", P.eq("person"))));
+        Assert.assertTrue(TraversalUtil.canExtractHasContainer(
+                null, new HasContainer("~id", P.eq("1"))));
         Assert.assertFalse(TraversalUtil.canExtractHasContainer(
                 null, new HasContainer("name", P.eq("marko"))));
     }
@@ -43,5 +52,39 @@ public class TraversalUtilOptimizeTest {
 
         Assert.assertFalse(TraversalUtil.canExtractHasContainer(
                 graph, new HasContainer("missing", P.eq("marko"))));
+    }
+
+    @Test
+    public void testCanExtractHasContainerWithoutPropertyIndex() {
+        HugeGraph graph = Mockito.mock(HugeGraph.class);
+        PropertyKey age = propertyKey(1L, "age", DataType.INT);
+        Mockito.when(graph.propertyKey("age")).thenReturn(age);
+        Mockito.when(graph.indexLabels()).thenReturn(Collections.emptyList());
+
+        Assert.assertFalse(TraversalUtil.canExtractHasContainer(
+                graph, new HasContainer("age", P.eq(1))));
+    }
+
+    @Test
+    public void testCanExtractHasContainerWithPropertyIndex() {
+        HugeGraph graph = Mockito.mock(HugeGraph.class);
+        PropertyKey age = propertyKey(1L, "age", DataType.INT);
+        IndexLabel ageIndex = new IndexLabel(null, IdGenerator.of(2L),
+                                            "vl1ByAge");
+        ageIndex.indexFields(age.id());
+        Mockito.when(graph.propertyKey("age")).thenReturn(age);
+        Mockito.when(graph.indexLabels())
+               .thenReturn(Collections.singletonList(ageIndex));
+
+        Assert.assertTrue(TraversalUtil.canExtractHasContainer(
+                graph, new HasContainer("age", P.eq(1))));
+    }
+
+    private static PropertyKey propertyKey(long id, String name,
+                                           DataType dataType) {
+        Id keyId = IdGenerator.of(id);
+        PropertyKey key = new PropertyKey(null, keyId, name);
+        key.dataType(dataType);
+        return key;
     }
 }

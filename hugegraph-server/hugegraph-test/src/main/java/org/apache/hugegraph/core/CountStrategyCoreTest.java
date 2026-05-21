@@ -49,11 +49,19 @@ public class CountStrategyCoreTest extends BaseCoreTest {
     }
 
     private void initTextRangeSchema(boolean withEdge) {
+        this.initTextRangeSchema(withEdge, false);
+    }
+
+    private void initTextRangeSchema(boolean withEdge, boolean withAgeIndex) {
         SchemaManager schema = graph().schema();
         schema.propertyKey("vp4").asText().create();
         schema.propertyKey("age").asInt().create();
         schema.vertexLabel("vl1").properties("vp4", "age")
               .nullableKeys("vp4", "age").create();
+        if (withAgeIndex) {
+            schema.indexLabel("vl1ByAge").onV("vl1").range()
+                  .by("age").create();
+        }
         if (withEdge) {
             schema.edgeLabel("el2").link("vl1", "vl1").create();
         }
@@ -160,7 +168,7 @@ public class CountStrategyCoreTest extends BaseCoreTest {
 
     @Test
     public void testTextRangeFilterDoesNotStopLaterGraphHasExtraction() {
-        this.initTextRangeSchema(false);
+        this.initTextRangeSchema(false, true);
 
         graph().addVertex(T.label, "vl1", "vp4", "a", "age", 1);
         graph().addVertex(T.label, "vl1", "vp4", "b", "age", 2);
@@ -181,7 +189,7 @@ public class CountStrategyCoreTest extends BaseCoreTest {
 
     @Test
     public void testTextRangeFilterDoesNotStopLaterVertexHasExtraction() {
-        this.initTextRangeSchema(true);
+        this.initTextRangeSchema(true, true);
 
         Vertex v1 = graph().addVertex(T.label, "vl1", "vp4", "a", "age", 1);
         Vertex v2 = graph().addVertex(T.label, "vl1", "vp4", "b", "age", 2);
