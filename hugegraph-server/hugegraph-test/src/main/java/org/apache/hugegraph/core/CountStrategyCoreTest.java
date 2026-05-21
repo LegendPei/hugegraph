@@ -48,6 +48,17 @@ public class CountStrategyCoreTest extends BaseCoreTest {
         commitTx();
     }
 
+    private void initTextRangeSchema(boolean withEdge) {
+        SchemaManager schema = graph().schema();
+        schema.propertyKey("vp4").asText().create();
+        schema.propertyKey("age").asInt().create();
+        schema.vertexLabel("vl1").properties("vp4", "age")
+              .nullableKeys("vp4", "age").create();
+        if (withEdge) {
+            schema.edgeLabel("el2").link("vl1", "vl1").create();
+        }
+    }
+
     @Test
     public void testWhereCountLtNegativeIsAlwaysFalse() {
         this.initSchema();
@@ -82,7 +93,7 @@ public class CountStrategyCoreTest extends BaseCoreTest {
                              .count().next();
 
         Assert.assertEquals(1L, direct);
-        Assert.assertEquals(viaMatch, direct);
+        Assert.assertEquals(direct, viaMatch);
     }
 
     @Test
@@ -128,12 +139,7 @@ public class CountStrategyCoreTest extends BaseCoreTest {
 
     @Test
     public void testRepeatAfterTextRangeFilterWithEmptyResult() {
-        SchemaManager schema = graph().schema();
-        schema.propertyKey("vp4").asText().create();
-        schema.propertyKey("age").asInt().create();
-        schema.vertexLabel("vl1").properties("vp4", "age")
-              .nullableKeys("vp4", "age").create();
-        schema.edgeLabel("el2").link("vl1", "vl1").create();
+        this.initTextRangeSchema(true);
 
         Vertex v1 = graph().addVertex(T.label, "vl1", "vp4", "a", "age", 1);
         Vertex v2 = graph().addVertex(T.label, "vl1", "vp4", "b", "age", 2);
@@ -149,16 +155,12 @@ public class CountStrategyCoreTest extends BaseCoreTest {
                              .select("m").count().next();
 
         Assert.assertEquals(0L, direct);
-        Assert.assertEquals(viaMatch, direct);
+        Assert.assertEquals(direct, viaMatch);
     }
 
     @Test
     public void testTextRangeFilterDoesNotStopLaterGraphHasExtraction() {
-        SchemaManager schema = graph().schema();
-        schema.propertyKey("vp4").asText().create();
-        schema.propertyKey("age").asInt().create();
-        schema.vertexLabel("vl1").properties("vp4", "age")
-              .nullableKeys("vp4", "age").create();
+        this.initTextRangeSchema(false);
 
         graph().addVertex(T.label, "vl1", "vp4", "a", "age", 1);
         graph().addVertex(T.label, "vl1", "vp4", "b", "age", 2);
@@ -174,17 +176,12 @@ public class CountStrategyCoreTest extends BaseCoreTest {
                              .select("v").count().next();
 
         Assert.assertEquals(0L, direct);
-        Assert.assertEquals(viaMatch, direct);
+        Assert.assertEquals(direct, viaMatch);
     }
 
     @Test
     public void testTextRangeFilterDoesNotStopLaterVertexHasExtraction() {
-        SchemaManager schema = graph().schema();
-        schema.propertyKey("vp4").asText().create();
-        schema.propertyKey("age").asInt().create();
-        schema.vertexLabel("vl1").properties("vp4", "age")
-              .nullableKeys("vp4", "age").create();
-        schema.edgeLabel("el2").link("vl1", "vl1").create();
+        this.initTextRangeSchema(true);
 
         Vertex v1 = graph().addVertex(T.label, "vl1", "vp4", "a", "age", 1);
         Vertex v2 = graph().addVertex(T.label, "vl1", "vp4", "b", "age", 2);
@@ -201,6 +198,6 @@ public class CountStrategyCoreTest extends BaseCoreTest {
                              .select("v").count().next();
 
         Assert.assertEquals(0L, direct);
-        Assert.assertEquals(viaMatch, direct);
+        Assert.assertEquals(direct, viaMatch);
     }
 }

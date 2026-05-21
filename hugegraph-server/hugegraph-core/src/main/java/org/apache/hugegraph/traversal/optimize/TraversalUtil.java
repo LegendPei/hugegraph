@@ -166,9 +166,8 @@ public final class TraversalUtil {
 
     public static void extractHasContainer(HugeGraphStep<?, ?> newStep,
                                            Traversal.Admin<?, ?> traversal) {
-        Step<?, ?> step = newStep;
-        do {
-            step = step.getNextStep();
+        Step<?, ?> step = newStep.getNextStep();
+        while (step instanceof HasStep || step instanceof NoOpBarrierStep) {
             if (step instanceof HasStep) {
                 HasContainerHolder holder = (HasContainerHolder) step;
                 if (extractHasContainers(newStep, holder)) {
@@ -176,7 +175,8 @@ public final class TraversalUtil {
                     traversal.removeStep(step);
                 }
             }
-        } while (step instanceof HasStep || step instanceof NoOpBarrierStep);
+            step = step.getNextStep();
+        }
     }
 
     public static void extractHasContainer(HugeVertexStep<?> newStep,
@@ -232,8 +232,8 @@ public final class TraversalUtil {
         return true;
     }
 
-    private static boolean canExtractHasContainer(HugeGraph graph,
-                                                  HasContainer has) {
+    static boolean canExtractHasContainer(HugeGraph graph,
+                                          HasContainer has) {
         if (isSysProp(has.getKey())) {
             return true;
         }
