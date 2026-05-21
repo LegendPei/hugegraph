@@ -17,13 +17,10 @@
 
 package org.apache.hugegraph.traversal.optimize;
 
-import java.util.Collections;
-
 import org.apache.hugegraph.HugeGraph;
 import org.apache.hugegraph.backend.id.Id;
 import org.apache.hugegraph.backend.id.IdGenerator;
 import org.apache.hugegraph.exception.NotFoundException;
-import org.apache.hugegraph.schema.IndexLabel;
 import org.apache.hugegraph.schema.PropertyKey;
 import org.apache.hugegraph.testutil.Assert;
 import org.apache.hugegraph.type.define.DataType;
@@ -55,29 +52,25 @@ public class TraversalUtilOptimizeTest {
     }
 
     @Test
-    public void testCanExtractHasContainerWithoutPropertyIndex() {
+    public void testCanExtractHasContainerWithNonTextProperty() {
         HugeGraph graph = Mockito.mock(HugeGraph.class);
         PropertyKey age = propertyKey(1L, "age", DataType.INT);
         Mockito.when(graph.propertyKey("age")).thenReturn(age);
-        Mockito.when(graph.indexLabels()).thenReturn(Collections.emptyList());
 
-        Assert.assertFalse(TraversalUtil.canExtractHasContainer(
+        Assert.assertTrue(TraversalUtil.canExtractHasContainer(
                 graph, new HasContainer("age", P.eq(1))));
     }
 
     @Test
-    public void testCanExtractHasContainerWithoutLabelContext() {
+    public void testCanExtractHasContainerWithTextRangePredicate() {
         HugeGraph graph = Mockito.mock(HugeGraph.class);
-        PropertyKey age = propertyKey(1L, "age", DataType.INT);
-        IndexLabel ageIndex = new IndexLabel(null, IdGenerator.of(2L),
-                                            "vl1ByAge");
-        ageIndex.indexFields(age.id());
-        Mockito.when(graph.propertyKey("age")).thenReturn(age);
-        Mockito.when(graph.indexLabels())
-               .thenReturn(Collections.singletonList(ageIndex));
+        PropertyKey name = propertyKey(1L, "name", DataType.TEXT);
+        Mockito.when(graph.propertyKey("name")).thenReturn(name);
 
         Assert.assertFalse(TraversalUtil.canExtractHasContainer(
-                graph, new HasContainer("age", P.eq(1))));
+                graph, new HasContainer("name", P.lt(""))));
+        Assert.assertTrue(TraversalUtil.canExtractHasContainer(
+                graph, new HasContainer("name", P.eq("marko"))));
     }
 
     private static PropertyKey propertyKey(long id, String name,
