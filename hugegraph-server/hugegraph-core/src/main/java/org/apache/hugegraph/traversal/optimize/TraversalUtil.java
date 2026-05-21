@@ -289,12 +289,18 @@ public final class TraversalUtil {
         SchemaLabel schemaLabel = schemaLabel(graph, type, labelIds.iterator().next());
         for (Id indexLabelId : schemaLabel.indexLabels()) {
             IndexLabel indexLabel = graph.indexLabel(indexLabelId);
-            if (indexLabel.indexFields().contains(pkey.id()) &&
+            if (matchIndexField(indexLabel, pkey) &&
                 matchIndexType(indexLabel, has)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static boolean matchIndexField(IndexLabel indexLabel,
+                                           PropertyKey pkey) {
+        List<Id> fields = indexLabel.indexFields();
+        return !fields.isEmpty() && fields.get(0).equals(pkey.id());
     }
 
     private static SchemaLabel schemaLabel(HugeGraph graph, HugeType type,
@@ -319,6 +325,9 @@ public final class TraversalUtil {
         collectPredicates(predicates, ImmutableList.of(has.getPredicate()));
         for (P<Object> pred : predicates) {
             BiPredicate<?, ?> bp = pred.getBiPredicate();
+            if (bp == Compare.neq || bp == Contains.without) {
+                return false;
+            }
             range |= bp == Compare.gt || bp == Compare.gte ||
                      bp == Compare.lt || bp == Compare.lte;
             search |= bp instanceof Condition.RelationType &&

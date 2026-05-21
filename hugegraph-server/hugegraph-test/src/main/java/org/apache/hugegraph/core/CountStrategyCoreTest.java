@@ -243,4 +243,59 @@ public class CountStrategyCoreTest extends BaseCoreTest {
         Assert.assertEquals(0L, direct);
         Assert.assertEquals(direct, viaMatch);
     }
+
+    @Test
+    public void testTextRangeFilterDoesNotExtractNonPrefixCompositeIndex() {
+        SchemaManager schema = graph().schema();
+        schema.propertyKey("vp4").asText().create();
+        schema.propertyKey("age").asInt().create();
+        schema.propertyKey("city").asText().create();
+        schema.vertexLabel("vl1").properties("vp4", "age", "city")
+              .nullableKeys("vp4", "age", "city").create();
+        schema.indexLabel("vl1ByCityAge").onV("vl1").secondary()
+              .by("city", "age").create();
+
+        graph().addVertex(T.label, "vl1", "vp4", "a", "age", 1,
+                          "city", "Beijing");
+        graph().addVertex(T.label, "vl1", "vp4", "b", "age", 2,
+                          "city", "Shanghai");
+        commitTx();
+
+        long direct = graph().traversal().V()
+                           .hasLabel("vl1")
+                           .has("vp4", P.lt(""))
+                           .has("age", 1)
+                           .count().next();
+        long viaMatch = graph().traversal().V()
+                             .match(__.as("v").hasLabel("vl1")
+                                      .has("vp4", P.lt(""))
+                                      .has("age", 1))
+                             .select("v").count().next();
+
+        Assert.assertEquals(0L, direct);
+        Assert.assertEquals(direct, viaMatch);
+    }
+
+    @Test
+    public void testTextRangeFilterDoesNotExtractNeqPredicate() {
+        this.initTextRangeSchema(false, true);
+
+        graph().addVertex(T.label, "vl1", "vp4", "a", "age", 1);
+        graph().addVertex(T.label, "vl1", "vp4", "b", "age", 2);
+        commitTx();
+
+        long direct = graph().traversal().V()
+                           .hasLabel("vl1")
+                           .has("vp4", P.lt(""))
+                           .has("age", P.neq(1))
+                           .count().next();
+        long viaMatch = graph().traversal().V()
+                             .match(__.as("v").hasLabel("vl1")
+                                      .has("vp4", P.lt(""))
+                                      .has("age", P.neq(1)))
+                             .select("v").count().next();
+
+        Assert.assertEquals(0L, direct);
+        Assert.assertEquals(direct, viaMatch);
+    }
 }
