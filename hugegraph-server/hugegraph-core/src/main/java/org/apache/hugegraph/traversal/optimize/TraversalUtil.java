@@ -39,6 +39,7 @@ import org.apache.hugegraph.backend.query.Aggregate;
 import org.apache.hugegraph.backend.query.Condition;
 import org.apache.hugegraph.backend.query.ConditionQuery;
 import org.apache.hugegraph.backend.query.Query;
+import org.apache.hugegraph.exception.NotFoundException;
 import org.apache.hugegraph.exception.NotSupportException;
 import org.apache.hugegraph.iterator.FilterIterator;
 import org.apache.hugegraph.schema.PropertyKey;
@@ -168,6 +169,7 @@ public final class TraversalUtil {
                                            Traversal.Admin<?, ?> traversal) {
         Step<?, ?> step = newStep.getNextStep();
         while (step instanceof HasStep || step instanceof NoOpBarrierStep) {
+            Step<?, ?> nextStep = step.getNextStep();
             if (step instanceof HasStep) {
                 HasContainerHolder holder = (HasContainerHolder) step;
                 if (extractHasContainers(newStep, holder)) {
@@ -175,7 +177,7 @@ public final class TraversalUtil {
                     traversal.removeStep(step);
                 }
             }
-            step = step.getNextStep();
+            step = nextStep;
         }
     }
 
@@ -183,6 +185,7 @@ public final class TraversalUtil {
                                            Traversal.Admin<?, ?> traversal) {
         Step<?, ?> step = newStep;
         do {
+            Step<?, ?> nextStep = step.getNextStep();
             if (step instanceof HasStep) {
                 HasContainerHolder holder = (HasContainerHolder) step;
                 if (extractHasContainers(newStep, holder)) {
@@ -190,7 +193,7 @@ public final class TraversalUtil {
                     traversal.removeStep(step);
                 }
             }
-            step = step.getNextStep();
+            step = nextStep;
         } while (step instanceof HasStep || step instanceof NoOpBarrierStep);
     }
 
@@ -241,7 +244,12 @@ public final class TraversalUtil {
             return false;
         }
 
-        PropertyKey pkey = graph.propertyKey(has.getKey());
+        PropertyKey pkey;
+        try {
+            pkey = graph.propertyKey(has.getKey());
+        } catch (NotFoundException e) {
+            return false;
+        }
         if (!pkey.dataType().isText()) {
             return true;
         }

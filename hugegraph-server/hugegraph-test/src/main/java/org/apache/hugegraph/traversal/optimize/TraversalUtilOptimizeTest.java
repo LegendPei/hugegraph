@@ -17,10 +17,13 @@
 
 package org.apache.hugegraph.traversal.optimize;
 
+import org.apache.hugegraph.HugeGraph;
+import org.apache.hugegraph.exception.NotFoundException;
 import org.apache.hugegraph.testutil.Assert;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 public class TraversalUtilOptimizeTest {
 
@@ -30,5 +33,15 @@ public class TraversalUtilOptimizeTest {
                 null, new HasContainer("~label", P.eq("person"))));
         Assert.assertFalse(TraversalUtil.canExtractHasContainer(
                 null, new HasContainer("name", P.eq("marko"))));
+    }
+
+    @Test
+    public void testCanExtractHasContainerWithMissingPropertyKey() {
+        HugeGraph graph = Mockito.mock(HugeGraph.class);
+        Mockito.when(graph.propertyKey("missing"))
+               .thenThrow(new NotFoundException("missing"));
+
+        Assert.assertFalse(TraversalUtil.canExtractHasContainer(
+                graph, new HasContainer("missing", P.eq("marko"))));
     }
 }
