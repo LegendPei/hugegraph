@@ -20,10 +20,12 @@ package org.apache.hugegraph.traversal.optimize;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -202,8 +204,11 @@ public final class TraversalUtil {
                                                 HasContainerHolder holder) {
         HugeGraph graph = TraversalUtil.tryGetGraph(newStep);
         List<HasContainer> hasContainers = new ArrayList<>(holder.getHasContainers());
+        HugeType type = newStep.returnsVertex() ? HugeType.VERTEX : HugeType.EDGE;
+        Set<Id> labelIds = collectLabelIds(graph, type, newStep.getHasContainers(),
+                                           hasContainers);
         for (HasContainer has : hasContainers) {
-            if (!canExtractHasContainer(graph, has)) {
+            if (!canExtractHasContainer(graph, type, labelIds, has)) {
                 continue;
             }
             if (!GraphStep.processHasContainerIds(newStep, has)) {
@@ -218,8 +223,11 @@ public final class TraversalUtil {
                                                 HasContainerHolder holder) {
         HugeGraph graph = TraversalUtil.tryGetGraph(newStep);
         List<HasContainer> hasContainers = new ArrayList<>(holder.getHasContainers());
+        HugeType type = newStep.returnsVertex() ? HugeType.VERTEX : HugeType.EDGE;
+        Set<Id> labelIds = collectLabelIds(graph, type, newStep.getHasContainers(),
+                                           hasContainers);
         for (HasContainer has : hasContainers) {
-            if (!canExtractHasContainer(graph, has)) {
+            if (!canExtractHasContainer(graph, type, labelIds, has)) {
                 continue;
             }
             newStep.addHasContainer(has);
@@ -230,6 +238,13 @@ public final class TraversalUtil {
 
     static boolean canExtractHasContainer(HugeGraph graph,
                                           HasContainer has) {
+        return canExtractHasContainer(graph, HugeType.UNKNOWN, null, has);
+    }
+
+    private static boolean canExtractHasContainer(HugeGraph graph,
+                                                  HugeType type,
+                                                  Set<Id> labelIds,
+                                                  HasContainer has) {
         if (isSysProp(has.getKey())) {
             return true;
         }
@@ -243,7 +258,7 @@ public final class TraversalUtil {
         } catch (NotFoundException e) {
             return false;
         }
-        if (!hasIndexForProperty(graph, pkey)) {
+        if (!hasIndexForProperty(graph, type, labelIds, pkey, has)) {
             return false;
         }
         if (!pkey.dataType().isText()) {
@@ -263,11 +278,98 @@ public final class TraversalUtil {
     }
 
     private static boolean hasIndexForProperty(HugeGraph graph,
-                                               PropertyKey pkey) {
-        for (IndexLabel indexLabel : graph.indexLabels()) {
-            if (indexLabel.indexFields().contains(pkey.id())) {
+                                               HugeType type,
+                                               Set<Id> labelIds,
+                                               PropertyKey pkey,
+                                               HasContainer has) {
+        if (labelIds == null || labelIds.size() != 1) {
+            return false;
+        }
+
+        SchemaLabel schemaLabel = schemaLabel(graph, type, labelIds.iterator().next());
+        for (Id indexLabelId : schemaLabel.indexLabels()) {
+            IndexLabel indexLabel = graph.indexLabel(indexLabelId);
+            if (indexLabel.indexFields().contains(pkey.id()) &&
+                matchIndexType(indexLabel, has)) {
                 return true;
             }
+        }
+        return false;
+    }
+
+    private static SchemaLabel schemaLabel(HugeGraph graph, HugeType type,
+                                           Id label) {
+        if (type.isVertex()) {
+            return graph.vertexLabel(label);
+        } else {
+            assert type.isEdge();
+            return graph.edgeLabel(label);
+        }
+    }
+
+    private static boolean matchIndexType(IndexLabel indexLabel,
+                                          HasContainer has) {
+        if (indexLabel.indexType().isUnique()) {
+            return false;
+        }
+
+        boolean range = false;
+        boolean search = false;
+        List<P<Object>> predicates = new ArrayList<>();
+        collectPredicates(predicates, ImmutableList.of(has.getPredicate()));
+        for (P<Object> pred : predicates) {
+            BiPredicate<?, ?> bp = pred.getBiPredicate();
+            range |= bp == Compare.gt || bp == Compare.gte ||
+                     bp == Compare.lt || bp == Compare.lte;
+            search |= bp instanceof Condition.RelationType &&
+                      ((Condition.RelationType) bp).isSearchType();
+        }
+
+        if (search) {
+            return indexLabel.indexType().isSearch();
+        }
+        if (indexLabel.indexType().isSearch()) {
+            return false;
+        }
+        return !range || indexLabel.indexType().isNumeric();
+    }
+
+    @SafeVarargs
+    private static Set<Id> collectLabelIds(HugeGraph graph, HugeType type,
+                                           List<HasContainer>... containers) {
+        if (graph == null) {
+            return null;
+        }
+
+        Set<Id> labelIds = new HashSet<>();
+        for (List<HasContainer> list : containers) {
+            for (HasContainer has : list) {
+                if (token2HugeKey(has.getKey()) != HugeKeys.LABEL) {
+                    continue;
+                }
+                if (!collectLabelIds(graph, type, has, labelIds)) {
+                    return null;
+                }
+            }
+        }
+        return labelIds;
+    }
+
+    private static boolean collectLabelIds(HugeGraph graph, HugeType type,
+                                           HasContainer has, Set<Id> labels) {
+        BiPredicate<?, ?> bp = has.getPredicate().getBiPredicate();
+        if (bp == Compare.eq) {
+            labels.add((Id) convSysValueIfNeeded(graph, type, HugeKeys.LABEL,
+                                                 has.getValue()));
+            return true;
+        }
+        if (bp == Contains.within) {
+            Collection<?> values = (Collection<?>) has.getValue();
+            for (Object value : values) {
+                labels.add((Id) convSysValueIfNeeded(graph, type, HugeKeys.LABEL,
+                                                     value));
+            }
+            return true;
         }
         return false;
     }

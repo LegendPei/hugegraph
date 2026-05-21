@@ -66,7 +66,7 @@ public class TraversalUtilOptimizeTest {
     }
 
     @Test
-    public void testCanExtractHasContainerWithPropertyIndex() {
+    public void testCanExtractHasContainerWithoutLabelContext() {
         HugeGraph graph = Mockito.mock(HugeGraph.class);
         PropertyKey age = propertyKey(1L, "age", DataType.INT);
         IndexLabel ageIndex = new IndexLabel(null, IdGenerator.of(2L),
@@ -76,7 +76,7 @@ public class TraversalUtilOptimizeTest {
         Mockito.when(graph.indexLabels())
                .thenReturn(Collections.singletonList(ageIndex));
 
-        Assert.assertTrue(TraversalUtil.canExtractHasContainer(
+        Assert.assertFalse(TraversalUtil.canExtractHasContainer(
                 graph, new HasContainer("age", P.eq(1))));
     }
 

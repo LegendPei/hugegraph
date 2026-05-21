@@ -175,11 +175,13 @@ public class CountStrategyCoreTest extends BaseCoreTest {
         commitTx();
 
         long direct = graph().traversal().V()
+                           .hasLabel("vl1")
                            .has("vp4", P.lt(""))
                            .has("age", 1)
                            .count().next();
         long viaMatch = graph().traversal().V()
-                             .match(__.as("v").has("vp4", P.lt(""))
+                             .match(__.as("v").hasLabel("vl1")
+                                      .has("vp4", P.lt(""))
                                       .has("age", 1))
                              .select("v").count().next();
 
@@ -197,12 +199,45 @@ public class CountStrategyCoreTest extends BaseCoreTest {
         commitTx();
 
         long direct = graph().traversal().V(v1.id()).out("el2")
+                           .hasLabel("vl1")
                            .has("vp4", P.lt(""))
                            .has("age", 2)
                            .count().next();
         long viaMatch = graph().traversal().V(v1.id()).out("el2")
-                             .match(__.as("v").has("vp4", P.lt(""))
+                             .match(__.as("v").hasLabel("vl1")
+                                      .has("vp4", P.lt(""))
                                       .has("age", 2))
+                             .select("v").count().next();
+
+        Assert.assertEquals(0L, direct);
+        Assert.assertEquals(direct, viaMatch);
+    }
+
+    @Test
+    public void testTextRangeFilterDoesNotExtractIndexFromOtherLabel() {
+        SchemaManager schema = graph().schema();
+        schema.propertyKey("vp4").asText().create();
+        schema.propertyKey("age").asInt().create();
+        schema.vertexLabel("vl1").properties("vp4", "age")
+              .nullableKeys("vp4", "age").create();
+        schema.vertexLabel("vl2").properties("vp4", "age")
+              .nullableKeys("vp4", "age").create();
+        schema.indexLabel("vl1ByAge").onV("vl1").range()
+              .by("age").create();
+
+        graph().addVertex(T.label, "vl2", "vp4", "a", "age", 1);
+        graph().addVertex(T.label, "vl2", "vp4", "b", "age", 2);
+        commitTx();
+
+        long direct = graph().traversal().V()
+                           .hasLabel("vl2")
+                           .has("vp4", P.lt(""))
+                           .has("age", 1)
+                           .count().next();
+        long viaMatch = graph().traversal().V()
+                             .match(__.as("v").hasLabel("vl2")
+                                      .has("vp4", P.lt(""))
+                                      .has("age", 1))
                              .select("v").count().next();
 
         Assert.assertEquals(0L, direct);
