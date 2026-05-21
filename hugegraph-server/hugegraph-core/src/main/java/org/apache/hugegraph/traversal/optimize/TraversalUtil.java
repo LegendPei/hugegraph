@@ -171,13 +171,10 @@ public final class TraversalUtil {
             step = step.getNextStep();
             if (step instanceof HasStep) {
                 HasContainerHolder holder = (HasContainerHolder) step;
-                for (HasContainer has : holder.getHasContainers()) {
-                    if (!GraphStep.processHasContainerIds(newStep, has)) {
-                        newStep.addHasContainer(has);
-                    }
+                if (extractHasContainers(newStep, holder)) {
+                    TraversalHelper.copyLabels(step, step.getPreviousStep(), false);
+                    traversal.removeStep(step);
                 }
-                TraversalHelper.copyLabels(step, step.getPreviousStep(), false);
-                traversal.removeStep(step);
             }
         } while (step instanceof HasStep || step instanceof NoOpBarrierStep);
     }
@@ -188,14 +185,71 @@ public final class TraversalUtil {
         do {
             if (step instanceof HasStep) {
                 HasContainerHolder holder = (HasContainerHolder) step;
-                for (HasContainer has : holder.getHasContainers()) {
-                    newStep.addHasContainer(has);
+                if (extractHasContainers(newStep, holder)) {
+                    TraversalHelper.copyLabels(step, step.getPreviousStep(), false);
+                    traversal.removeStep(step);
                 }
-                TraversalHelper.copyLabels(step, step.getPreviousStep(), false);
-                traversal.removeStep(step);
             }
             step = step.getNextStep();
         } while (step instanceof HasStep || step instanceof NoOpBarrierStep);
+    }
+
+    private static boolean extractHasContainers(HugeGraphStep<?, ?> newStep,
+                                                HasContainerHolder holder) {
+        HugeGraph graph = TraversalUtil.tryGetGraph(newStep);
+        Iterator<HasContainer> iterator = holder.getHasContainers().iterator();
+        while (iterator.hasNext()) {
+            HasContainer has = iterator.next();
+            if (!canExtractHasContainer(graph, has)) {
+                continue;
+            }
+            if (!GraphStep.processHasContainerIds(newStep, has)) {
+                newStep.addHasContainer(has);
+            }
+            iterator.remove();
+        }
+        return holder.getHasContainers().isEmpty();
+    }
+
+    private static boolean extractHasContainers(HugeVertexStep<?> newStep,
+                                                HasContainerHolder holder) {
+        HugeGraph graph = TraversalUtil.tryGetGraph(newStep);
+        Iterator<HasContainer> iterator = holder.getHasContainers().iterator();
+        while (iterator.hasNext()) {
+            HasContainer has = iterator.next();
+            if (!canExtractHasContainer(graph, has)) {
+                continue;
+            }
+            newStep.addHasContainer(has);
+            iterator.remove();
+        }
+        return holder.getHasContainers().isEmpty();
+    }
+
+    private static boolean canExtractHasContainer(HugeGraph graph,
+                                                  HasContainer has) {
+        if (isSysProp(has.getKey())) {
+            return true;
+        }
+        if (graph == null) {
+            return false;
+        }
+
+        PropertyKey pkey = graph.propertyKey(has.getKey());
+        if (!pkey.dataType().isText()) {
+            return true;
+        }
+
+        List<P<Object>> predicates = new ArrayList<>();
+        collectPredicates(predicates, ImmutableList.of(has.getPredicate()));
+        for (P<Object> pred : predicates) {
+            BiPredicate<?, ?> bp = pred.getBiPredicate();
+            if (bp == Compare.gt || bp == Compare.gte ||
+                bp == Compare.lt || bp == Compare.lte) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static void extractOrder(Step<?, ?> newStep,
