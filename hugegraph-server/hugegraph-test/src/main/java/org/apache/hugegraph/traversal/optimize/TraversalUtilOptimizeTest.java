@@ -78,6 +78,10 @@ public class TraversalUtilOptimizeTest {
 
         Assert.assertFalse(TraversalUtil.canExtractHasContainer(
                 graph, new HasContainer("name", P.lt(""))));
+        Assert.assertFalse(TraversalUtil.canExtractHasContainer(
+                graph, new HasContainer("name", P.gte("marko"))));
+        Assert.assertFalse(TraversalUtil.canExtractHasContainer(
+                graph, new HasContainer("name", P.between("josh", "marko"))));
         Assert.assertTrue(TraversalUtil.canExtractHasContainer(
                 graph, new HasContainer("name", P.eq("marko"))));
     }
@@ -90,6 +94,37 @@ public class TraversalUtilOptimizeTest {
 
         Traversal.Admin<?, ?> traversal = traversal(__.V()
                                                      .has("name", P.lt("marko")),
+                                                   graph);
+        HugeGraphStep<?, ?> newStep = replaceGraphStep(traversal);
+
+        TraversalUtil.extractHasContainer(newStep, traversal);
+
+        Assert.assertTrue(newStep.getHasContainers().isEmpty());
+        Assert.assertTrue(hasStepExists(traversal));
+    }
+
+    @Test
+    public void testExtractHasContainerKeepsTextRangeWithoutGraph() {
+        Traversal.Admin<?, ?> traversal = __.V()
+                                           .has("name", P.lt("marko"))
+                                           .asAdmin();
+        HugeGraphStep<?, ?> newStep = replaceGraphStep(traversal);
+
+        TraversalUtil.extractHasContainer(newStep, traversal);
+
+        Assert.assertTrue(newStep.getHasContainers().isEmpty());
+        Assert.assertTrue(hasStepExists(traversal));
+    }
+
+    @Test
+    public void testExtractHasContainerKeepsTextBetweenGraphHasStep() {
+        HugeGraph graph = Mockito.mock(HugeGraph.class);
+        PropertyKey name = propertyKey(1L, "name", DataType.TEXT);
+        Mockito.when(graph.propertyKey("name")).thenReturn(name);
+
+        Traversal.Admin<?, ?> traversal = traversal(__.V()
+                                                     .has("name", P.between(
+                                                             "josh", "marko")),
                                                    graph);
         HugeGraphStep<?, ?> newStep = replaceGraphStep(traversal);
 

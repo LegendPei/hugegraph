@@ -51,11 +51,13 @@ public class CountStrategyCoreTest extends BaseCoreTest {
     private void initTextRangeSchema(boolean withEdge) {
         SchemaManager schema = graph().schema();
         schema.propertyKey("vp4").asText().create();
+        schema.propertyKey("ep4").asText().create();
         schema.propertyKey("age").asInt().create();
         schema.vertexLabel("vl1").properties("vp4", "age")
               .nullableKeys("vp4", "age").create();
         if (withEdge) {
-            schema.edgeLabel("el2").link("vl1", "vl1").create();
+            schema.edgeLabel("el2").properties("ep4")
+                  .nullableKeys("ep4").link("vl1", "vl1").create();
         }
     }
 
@@ -200,6 +202,26 @@ public class CountStrategyCoreTest extends BaseCoreTest {
                                       .has("vp4", P.lt(""))
                                       .has("age", 2))
                              .select("v").count().next();
+
+        Assert.assertEquals(0L, direct);
+        Assert.assertEquals(direct, viaMatch);
+    }
+
+    @Test
+    public void testTextRangeFilterKeepsEdgeGraphHasStep() {
+        this.initTextRangeSchema(true);
+
+        Vertex v1 = graph().addVertex(T.label, "vl1", "vp4", "a", "age", 1);
+        Vertex v2 = graph().addVertex(T.label, "vl1", "vp4", "b", "age", 2);
+        v1.addEdge("el2", v2, "ep4", "a");
+        commitTx();
+
+        long direct = graph().traversal().E()
+                           .has("ep4", P.lt(""))
+                           .count().next();
+        long viaMatch = graph().traversal().E()
+                             .match(__.as("e").has("ep4", P.lt("")))
+                             .select("e").count().next();
 
         Assert.assertEquals(0L, direct);
         Assert.assertEquals(direct, viaMatch);
