@@ -48,6 +48,33 @@ public class CountStrategyCoreTest extends BaseCoreTest {
         commitTx();
     }
 
+    private void initMatchNoIndexSchema() {
+        SchemaManager schema = graph().schema();
+        schema.propertyKey("vp2").asBoolean().create();
+        schema.propertyKey("vp3").asLong().create();
+        schema.propertyKey("vp4").asText().create();
+        schema.vertexLabel("vl1").properties("vp2", "vp4")
+              .nullableKeys("vp2", "vp4").create();
+        schema.vertexLabel("vl0").properties("vp3")
+              .nullableKeys("vp3").create();
+        schema.edgeLabel("el1").link("vl1", "vl0").create();
+    }
+
+    private void initMatchNoIndexGraph() {
+        Vertex v1 = graph().addVertex(T.label, "vl1", "vp2", true,
+                                      "vp4", "foo");
+        Vertex v2 = graph().addVertex(T.label, "vl1", "vp2", false,
+                                      "vp4", "J2O");
+        Vertex v3 = graph().addVertex(T.label, "vl0",
+                                      "vp3", 4592737712018141719L);
+        Vertex v4 = graph().addVertex(T.label, "vl0",
+                                      "vp3", 4592737712018141717L);
+
+        v1.addEdge("el1", v3);
+        v2.addEdge("el1", v4);
+        commitTx();
+    }
+
     @Test
     public void testWhereCountLtNegativeIsAlwaysFalse() {
         this.initSchema();
@@ -124,5 +151,33 @@ public class CountStrategyCoreTest extends BaseCoreTest {
                             .count().next();
 
         Assert.assertEquals(4L, count);
+    }
+
+    @Test
+    public void testMatchWithNoIndexConditionMatchesDirectTraversal() {
+        this.initMatchNoIndexSchema();
+        this.initMatchNoIndexGraph();
+
+        long direct = graph().traversal().V()
+                           .has("vp4", P.neq("J2O"))
+                           .has("vl1", "vp2", P.gte(false))
+                           .has("vp2")
+                           .has("vl0", "vp3", P.gt(4592737712018141718L))
+                           .out("el1")
+                           .count().next();
+        long viaMatch = graph().traversal().V()
+                             .has("vp4", P.neq("J2O"))
+                             .has("vl1", "vp2", P.gte(false))
+                             .match(__.<Vertex>as("start0")
+                                      .has("vp2")
+                                      .has("vl0", "vp3",
+                                           P.gt(4592737712018141718L))
+                                      .repeat(__.out("el1"))
+                                      .times(1)
+                                      .as("m0"))
+                             .<Vertex>select("m0").count().next();
+
+        Assert.assertEquals(0L, direct);
+        Assert.assertEquals(direct, viaMatch);
     }
 }

@@ -67,6 +67,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CountGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MaxGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MeanGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MinGlobalStep;
@@ -171,6 +172,10 @@ public final class TraversalUtil {
             step = step.getNextStep();
             if (step instanceof HasStep) {
                 HasContainerHolder holder = (HasContainerHolder) step;
+                if (followedByMatchStep(step) &&
+                    hasIndexRequiredPredicate(holder)) {
+                    break;
+                }
                 for (HasContainer has : holder.getHasContainers()) {
                     if (!GraphStep.processHasContainerIds(newStep, has)) {
                         newStep.addHasContainer(has);
@@ -180,6 +185,37 @@ public final class TraversalUtil {
                 traversal.removeStep(step);
             }
         } while (step instanceof HasStep || step instanceof NoOpBarrierStep);
+    }
+
+    private static boolean followedByMatchStep(Step<?, ?> step) {
+        Step<?, ?> next = step.getNextStep();
+        while (next instanceof HasStep || next instanceof NoOpBarrierStep) {
+            next = next.getNextStep();
+        }
+        return next instanceof MatchStep;
+    }
+
+    private static boolean hasIndexRequiredPredicate(HasContainerHolder holder) {
+        for (HasContainer has : holder.getHasContainers()) {
+            if (hasIndexRequiredPredicate(has)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasIndexRequiredPredicate(HasContainer has) {
+        List<P<Object>> predicates = new ArrayList<>();
+        collectPredicates(predicates, ImmutableList.of(has.getPredicate()));
+        for (P<Object> pred : predicates) {
+            BiPredicate<?, ?> bp = pred.getBiPredicate();
+            if (bp == Compare.neq ||
+                bp == Compare.gt || bp == Compare.gte ||
+                bp == Compare.lt || bp == Compare.lte) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static void extractHasContainer(HugeVertexStep<?> newStep,
