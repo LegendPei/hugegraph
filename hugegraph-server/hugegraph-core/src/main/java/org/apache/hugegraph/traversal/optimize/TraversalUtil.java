@@ -41,6 +41,7 @@ import org.apache.hugegraph.backend.query.ConditionQuery;
 import org.apache.hugegraph.backend.query.Query;
 import org.apache.hugegraph.exception.NotSupportException;
 import org.apache.hugegraph.iterator.FilterIterator;
+import org.apache.hugegraph.schema.IndexLabel;
 import org.apache.hugegraph.schema.PropertyKey;
 import org.apache.hugegraph.schema.SchemaLabel;
 import org.apache.hugegraph.structure.HugeElement;
@@ -167,14 +168,22 @@ public final class TraversalUtil {
 
     public static void extractHasContainer(HugeGraphStep<?, ?> newStep,
                                            Traversal.Admin<?, ?> traversal) {
-        Step<?, ?> step = newStep;
-        do {
-            step = step.getNextStep();
+        Step<?, ?> step = newStep.getNextStep();
+        while (step instanceof HasStep || step instanceof NoOpBarrierStep) {
+            Step<?, ?> nextStep = step.getNextStep();
             if (step instanceof HasStep) {
                 HasContainerHolder holder = (HasContainerHolder) step;
+                /*
+                 * Range/neq predicates before match() may trigger a no-index
+                 * query after MatchStep reorders filters. Keep known-indexed
+                 * boolean predicates pushed down, and leave the rest for
+                 * TinkerPop to evaluate.
+                 */
                 if (followedByMatchStep(step) &&
-                    hasIndexRequiredPredicate(holder)) {
-                    break;
+                    hasUnusableMatchPredicate(newStep, holder)) {
+                    extractUsableHasContainers(newStep, holder);
+                    step = nextStep;
+                    continue;
                 }
                 for (HasContainer has : holder.getHasContainers()) {
                     if (!GraphStep.processHasContainerIds(newStep, has)) {
@@ -184,7 +193,8 @@ public final class TraversalUtil {
                 TraversalHelper.copyLabels(step, step.getPreviousStep(), false);
                 traversal.removeStep(step);
             }
-        } while (step instanceof HasStep || step instanceof NoOpBarrierStep);
+            step = nextStep;
+        }
     }
 
     private static boolean followedByMatchStep(Step<?, ?> step) {
@@ -195,16 +205,35 @@ public final class TraversalUtil {
         return next instanceof MatchStep;
     }
 
-    private static boolean hasIndexRequiredPredicate(HasContainerHolder holder) {
+    private static boolean hasUnusableMatchPredicate(HugeGraphStep<?, ?> step,
+                                                     HasContainerHolder holder) {
+        HugeGraph graph = tryGetGraph(step);
         for (HasContainer has : holder.getHasContainers()) {
-            if (hasIndexRequiredPredicate(has)) {
+            if (!hasMatchIndexSensitivePredicate(has)) {
+                continue;
+            }
+            if (graph == null || !hasUsableMatchIndex(graph, step, has)) {
                 return true;
             }
         }
         return false;
     }
 
-    private static boolean hasIndexRequiredPredicate(HasContainer has) {
+    private static void extractUsableHasContainers(HugeGraphStep<?, ?> step,
+                                                   HasContainerHolder holder) {
+        HugeGraph graph = tryGetGraph(step);
+        for (HasContainer has : holder.getHasContainers()) {
+            if (hasMatchIndexSensitivePredicate(has) &&
+                (graph == null || !hasUsableMatchIndex(graph, step, has))) {
+                continue;
+            }
+            if (!GraphStep.processHasContainerIds(step, has)) {
+                step.addHasContainer(has);
+            }
+        }
+    }
+
+    private static boolean hasMatchIndexSensitivePredicate(HasContainer has) {
         List<P<Object>> predicates = new ArrayList<>();
         collectPredicates(predicates, ImmutableList.of(has.getPredicate()));
         for (P<Object> pred : predicates) {
@@ -212,6 +241,51 @@ public final class TraversalUtil {
             if (bp == Compare.neq ||
                 bp == Compare.gt || bp == Compare.gte ||
                 bp == Compare.lt || bp == Compare.lte) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasUsableMatchIndex(HugeGraph graph,
+                                               HugeGraphStep<?, ?> step,
+                                               HasContainer has) {
+        if (isSysProp(has.getKey())) {
+            return true;
+        }
+
+        PropertyKey pkey = graph.propertyKey(has.getKey());
+        if (pkey.dataType() != DataType.BOOLEAN) {
+            return false;
+        }
+
+        Collection<? extends SchemaLabel> schemaLabels = step.returnsVertex() ?
+                                                         graph.vertexLabels() :
+                                                         graph.edgeLabels();
+        boolean seen = false;
+        for (SchemaLabel schemaLabel : schemaLabels) {
+            if (!schemaLabel.properties().contains(pkey.id())) {
+                continue;
+            }
+            seen = true;
+            if (!hasBooleanIndex(graph, schemaLabel, pkey)) {
+                return false;
+            }
+        }
+        return seen;
+    }
+
+    private static boolean hasBooleanIndex(HugeGraph graph,
+                                           SchemaLabel schemaLabel,
+                                           PropertyKey pkey) {
+        for (Id id : schemaLabel.indexLabels()) {
+            IndexLabel indexLabel = graph.indexLabel(id);
+            if (indexLabel.indexFields().size() != 1 ||
+                !indexLabel.indexField().equals(pkey.id())) {
+                continue;
+            }
+            if (indexLabel.indexType().isSecondary() ||
+                indexLabel.indexType().isUnique()) {
                 return true;
             }
         }

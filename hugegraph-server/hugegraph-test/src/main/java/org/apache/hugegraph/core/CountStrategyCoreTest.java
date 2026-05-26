@@ -19,8 +19,13 @@ package org.apache.hugegraph.core;
 
 import org.apache.hugegraph.schema.SchemaManager;
 import org.apache.hugegraph.testutil.Assert;
+import org.apache.hugegraph.traversal.optimize.HugeGraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
@@ -73,6 +78,28 @@ public class CountStrategyCoreTest extends BaseCoreTest {
         v1.addEdge("el1", v3);
         v2.addEdge("el1", v4);
         commitTx();
+    }
+
+    private static HugeGraphStep<?, ?> applyAndGetGraphStep(
+            GraphTraversal<?, ?> traversal) {
+        traversal.asAdmin().applyStrategies();
+        return (HugeGraphStep<?, ?>) traversal.asAdmin().getStartStep();
+    }
+
+    private static boolean hasRemainingHasStep(GraphTraversal<?, ?> traversal,
+                                               String key) {
+        for (Step<?, ?> step : traversal.asAdmin().getSteps()) {
+            if (!(step instanceof HasContainerHolder)) {
+                continue;
+            }
+            HasContainerHolder holder = (HasContainerHolder) step;
+            for (HasContainer has : holder.getHasContainers()) {
+                if (key.equals(has.getKey())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Test
@@ -179,5 +206,49 @@ public class CountStrategyCoreTest extends BaseCoreTest {
 
         Assert.assertEquals(0L, direct);
         Assert.assertEquals(direct, viaMatch);
+    }
+
+    @Test
+    public void testMatchWithIndexedRangeConditionStillExtractsHas() {
+        this.initMatchNoIndexSchema();
+        graph().schema().indexLabel("vl1ByVp2").onV("vl1")
+               .by("vp2").secondary().create();
+        this.initMatchNoIndexGraph();
+
+        GraphTraversal<Vertex, Long> traversal = graph().traversal().V()
+                                                        .has("vp2", P.lt(true))
+                                                        .match(__.<Vertex>as("s")
+                                                                 .has("vp2")
+                                                                 .as("m"))
+                                                        .<Vertex>select("m")
+                                                        .count();
+
+        HugeGraphStep<?, ?> graphStep = applyAndGetGraphStep(traversal);
+        Assert.assertEquals(1, graphStep.getHasContainers().size());
+        Assert.assertEquals("vp2", graphStep.getHasContainers().get(0).getKey());
+        Assert.assertEquals(1L, traversal.next());
+    }
+
+    @Test
+    public void testMatchWithNoIndexConditionKeepsExtractingNextHas() {
+        this.initMatchNoIndexSchema();
+        graph().schema().indexLabel("vl1ByVp2").onV("vl1")
+               .by("vp2").secondary().create();
+        this.initMatchNoIndexGraph();
+
+        GraphTraversal<Vertex, Long> traversal = graph().traversal().V()
+                                                        .has("vp4", P.neq("J2O"))
+                                                        .has("vp2", true)
+                                                        .match(__.<Vertex>as("s")
+                                                                 .has("vp2")
+                                                                 .as("m"))
+                                                        .<Vertex>select("m")
+                                                        .count();
+
+        HugeGraphStep<?, ?> graphStep = applyAndGetGraphStep(traversal);
+        Assert.assertEquals(1, graphStep.getHasContainers().size());
+        Assert.assertEquals("vp2", graphStep.getHasContainers().get(0).getKey());
+        Assert.assertTrue(hasRemainingHasStep(traversal, "vp4"));
+        Assert.assertEquals(1L, traversal.next());
     }
 }
