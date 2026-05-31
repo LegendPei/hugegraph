@@ -25,7 +25,9 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
@@ -58,11 +60,13 @@ public class CountStrategyCoreTest extends BaseCoreTest {
         schema.propertyKey("vp2").asBoolean().create();
         schema.propertyKey("vp3").asLong().create();
         schema.propertyKey("vp4").asText().create();
+        schema.propertyKey("ep2").asBoolean().create();
         schema.vertexLabel("vl1").properties("vp2", "vp4")
               .nullableKeys("vp2", "vp4").create();
         schema.vertexLabel("vl0").properties("vp3")
               .nullableKeys("vp3").create();
-        schema.edgeLabel("el1").link("vl1", "vl0").create();
+        schema.edgeLabel("el1").link("vl1", "vl0")
+              .properties("ep2").nullableKeys("ep2").create();
     }
 
     private void initMatchNoIndexGraph() {
@@ -75,8 +79,8 @@ public class CountStrategyCoreTest extends BaseCoreTest {
         Vertex v4 = graph().addVertex(T.label, "vl0",
                                       "vp3", 4592737712018141717L);
 
-        v1.addEdge("el1", v3);
-        v2.addEdge("el1", v4);
+        v1.addEdge("el1", v3, "ep2", true);
+        v2.addEdge("el1", v4, "ep2", false);
         commitTx();
     }
 
@@ -89,7 +93,7 @@ public class CountStrategyCoreTest extends BaseCoreTest {
     private static boolean hasRemainingHasStep(GraphTraversal<?, ?> traversal,
                                                String key) {
         for (Step<?, ?> step : traversal.asAdmin().getSteps()) {
-            if (!(step instanceof HasContainerHolder)) {
+            if (!(step instanceof HasStep)) {
                 continue;
             }
             HasContainerHolder holder = (HasContainerHolder) step;
@@ -250,5 +254,44 @@ public class CountStrategyCoreTest extends BaseCoreTest {
         Assert.assertEquals("vp2", graphStep.getHasContainers().get(0).getKey());
         Assert.assertTrue(hasRemainingHasStep(traversal, "vp4"));
         Assert.assertEquals(1L, traversal.next());
+    }
+
+    @Test
+    public void testMatchWithIndexedEdgeRangeConditionStillExtractsHas() {
+        this.initMatchNoIndexSchema();
+        graph().schema().indexLabel("el1ByEp2").onE("el1")
+               .by("ep2").secondary().create();
+        this.initMatchNoIndexGraph();
+
+        GraphTraversal<Edge, Long> traversal = graph().traversal().E()
+                                                      .has("ep2", P.lt(true))
+                                                      .match(__.<Edge>as("s")
+                                                               .has("ep2")
+                                                               .as("m"))
+                                                      .<Edge>select("m")
+                                                      .count();
+
+        HugeGraphStep<?, ?> graphStep = applyAndGetGraphStep(traversal);
+        Assert.assertEquals(1, graphStep.getHasContainers().size());
+        Assert.assertEquals("ep2", graphStep.getHasContainers().get(0).getKey());
+        Assert.assertEquals(1L, traversal.next());
+    }
+
+    @Test
+    public void testMatchWithSystemRangeConditionStillExtractsInStrategy() {
+        this.initMatchNoIndexSchema();
+        this.initMatchNoIndexGraph();
+
+        GraphTraversal<Vertex, Long> traversal = graph().traversal().V()
+                                                        .hasLabel(P.neq("vl0"))
+                                                        .match(__.<Vertex>as("s")
+                                                                 .has("vp2")
+                                                                 .as("m"))
+                                                        .<Vertex>select("m")
+                                                        .count();
+
+        HugeGraphStep<?, ?> graphStep = applyAndGetGraphStep(traversal);
+        Assert.assertEquals(1, graphStep.getHasContainers().size());
+        Assert.assertFalse(hasRemainingHasStep(traversal, T.label.getAccessor()));
     }
 }
