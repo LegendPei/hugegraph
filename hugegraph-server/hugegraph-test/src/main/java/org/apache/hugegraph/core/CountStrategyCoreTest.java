@@ -278,6 +278,55 @@ public class CountStrategyCoreTest extends BaseCoreTest {
     }
 
     @Test
+    public void testMatchWithIndexedNumericRangeConditionStillExtractsHas() {
+        this.initMatchNoIndexSchema();
+        graph().schema().indexLabel("vl0ByVp3").onV("vl0")
+               .by("vp3").range().create();
+        this.initMatchNoIndexGraph();
+
+        GraphTraversal<Vertex, Long> traversal = graph().traversal().V()
+                                                        .has("vp3",
+                                                             P.gt(4592737712018141718L))
+                                                        .match(__.<Vertex>as("s")
+                                                                 .has("vp3")
+                                                                 .as("m"))
+                                                        .<Vertex>select("m")
+                                                        .count();
+
+        HugeGraphStep<?, ?> graphStep = applyAndGetGraphStep(traversal);
+        Assert.assertEquals(1, graphStep.getHasContainers().size());
+        Assert.assertEquals("vp3", graphStep.getHasContainers().get(0).getKey());
+        Assert.assertFalse(hasRemainingHasStep(traversal, "vp3"));
+        Assert.assertEquals(1L, traversal.next());
+    }
+
+    @Test
+    public void testMatchWithIndexedNumericNeqConditionKeepsHas() {
+        this.initMatchNoIndexSchema();
+        graph().schema().indexLabel("vl0ByVp3").onV("vl0")
+               .by("vp3").range().create();
+        graph().schema().indexLabel("vl1ByVp2").onV("vl1")
+               .by("vp2").secondary().create();
+        this.initMatchNoIndexGraph();
+
+        GraphTraversal<Vertex, Long> traversal = graph().traversal().V()
+                                                        .has("vp3",
+                                                             P.neq(4592737712018141719L))
+                                                        .has("vp2", true)
+                                                        .match(__.<Vertex>as("s")
+                                                                 .has("vp2")
+                                                                 .as("m"))
+                                                        .<Vertex>select("m")
+                                                        .count();
+
+        HugeGraphStep<?, ?> graphStep = applyAndGetGraphStep(traversal);
+        Assert.assertEquals(1, graphStep.getHasContainers().size());
+        Assert.assertEquals("vp2", graphStep.getHasContainers().get(0).getKey());
+        Assert.assertTrue(hasRemainingHasStep(traversal, "vp3"));
+        Assert.assertEquals(0L, traversal.next());
+    }
+
+    @Test
     public void testMatchWithSystemRangeConditionStillExtractsInStrategy() {
         this.initMatchNoIndexSchema();
         this.initMatchNoIndexGraph();

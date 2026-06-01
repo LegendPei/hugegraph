@@ -255,9 +255,6 @@ public final class TraversalUtil {
         }
 
         PropertyKey pkey = graph.propertyKey(has.getKey());
-        if (pkey.dataType() != DataType.BOOLEAN) {
-            return false;
-        }
 
         Collection<? extends SchemaLabel> schemaLabels = step.returnsVertex() ?
                                                          graph.vertexLabels() :
@@ -268,7 +265,17 @@ public final class TraversalUtil {
                 continue;
             }
             seen = true;
-            if (!hasBooleanIndex(graph, schemaLabel, pkey)) {
+            if (pkey.dataType() == DataType.BOOLEAN &&
+                !hasBooleanIndex(graph, schemaLabel, pkey)) {
+                return false;
+            }
+            if (pkey.dataType().isNumber() &&
+                (!hasOnlyRangePredicates(has) ||
+                 !hasRangeIndex(graph, schemaLabel, pkey))) {
+                return false;
+            }
+            if (pkey.dataType() != DataType.BOOLEAN &&
+                !pkey.dataType().isNumber()) {
                 return false;
             }
         }
@@ -280,8 +287,7 @@ public final class TraversalUtil {
                                            PropertyKey pkey) {
         for (Id id : schemaLabel.indexLabels()) {
             IndexLabel indexLabel = graph.indexLabel(id);
-            if (indexLabel.indexFields().size() != 1 ||
-                !indexLabel.indexField().equals(pkey.id())) {
+            if (!matchSingleFieldIndex(indexLabel, pkey)) {
                 continue;
             }
             if (indexLabel.indexType().isSecondary() ||
@@ -290,6 +296,40 @@ public final class TraversalUtil {
             }
         }
         return false;
+    }
+
+    private static boolean hasRangeIndex(HugeGraph graph,
+                                         SchemaLabel schemaLabel,
+                                         PropertyKey pkey) {
+        for (Id id : schemaLabel.indexLabels()) {
+            IndexLabel indexLabel = graph.indexLabel(id);
+            if (!matchSingleFieldIndex(indexLabel, pkey)) {
+                continue;
+            }
+            if (indexLabel.indexType().isRange()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean matchSingleFieldIndex(IndexLabel indexLabel,
+                                                 PropertyKey pkey) {
+        return indexLabel.indexFields().size() == 1 &&
+               indexLabel.indexField().equals(pkey.id());
+    }
+
+    private static boolean hasOnlyRangePredicates(HasContainer has) {
+        List<P<Object>> predicates = new ArrayList<>();
+        collectPredicates(predicates, ImmutableList.of(has.getPredicate()));
+        for (P<Object> pred : predicates) {
+            BiPredicate<?, ?> bp = pred.getBiPredicate();
+            if (bp != Compare.gt && bp != Compare.gte &&
+                bp != Compare.lt && bp != Compare.lte) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static void extractHasContainer(HugeVertexStep<?> newStep,
