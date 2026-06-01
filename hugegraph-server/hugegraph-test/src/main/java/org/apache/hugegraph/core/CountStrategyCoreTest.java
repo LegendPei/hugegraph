@@ -327,10 +327,14 @@ public class CountStrategyCoreTest extends BaseCoreTest {
     }
 
     @Test
-    public void testMatchWithSystemRangeConditionStillExtractsInStrategy() {
+    public void testMatchWithSystemRangeConditionMatchesDirectTraversal() {
         this.initMatchNoIndexSchema();
         this.initMatchNoIndexGraph();
 
+        long direct = graph().traversal().V()
+                           .hasLabel("vl1")
+                           .has("vp2")
+                           .count().next();
         GraphTraversal<Vertex, Long> traversal = graph().traversal().V()
                                                         .hasLabel(P.neq("vl0"))
                                                         .match(__.<Vertex>as("s")
@@ -340,7 +344,28 @@ public class CountStrategyCoreTest extends BaseCoreTest {
                                                         .count();
 
         HugeGraphStep<?, ?> graphStep = applyAndGetGraphStep(traversal);
-        Assert.assertEquals(1, graphStep.getHasContainers().size());
-        Assert.assertFalse(hasRemainingHasStep(traversal, T.label.getAccessor()));
+        Assert.assertTrue(hasRemainingHasStep(traversal, T.label.getAccessor()));
+        Assert.assertEquals(direct, traversal.next().longValue());
+    }
+
+    @Test
+    public void testMatchWithUniqueBooleanRangeConditionKeepsHas() {
+        this.initMatchNoIndexSchema();
+        graph().schema().indexLabel("vl1ByUniqueVp2").onV("vl1")
+               .by("vp2").unique().create();
+        this.initMatchNoIndexGraph();
+
+        GraphTraversal<Vertex, Long> traversal = graph().traversal().V()
+                                                        .has("vp2", P.lt(true))
+                                                        .match(__.<Vertex>as("s")
+                                                                 .has("vp2")
+                                                                 .as("m"))
+                                                        .<Vertex>select("m")
+                                                        .count();
+
+        HugeGraphStep<?, ?> graphStep = applyAndGetGraphStep(traversal);
+        Assert.assertEquals(0, graphStep.getHasContainers().size());
+        Assert.assertTrue(hasRemainingHasStep(traversal, "vp2"));
+        Assert.assertEquals(1L, traversal.next());
     }
 }

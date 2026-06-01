@@ -251,7 +251,7 @@ public final class TraversalUtil {
                                                HugeGraphStep<?, ?> step,
                                                HasContainer has) {
         if (isSysProp(has.getKey())) {
-            return true;
+            return false;
         }
 
         PropertyKey pkey = graph.propertyKey(has.getKey());
@@ -290,8 +290,7 @@ public final class TraversalUtil {
             if (!matchSingleFieldIndex(indexLabel, pkey)) {
                 continue;
             }
-            if (indexLabel.indexType().isSecondary() ||
-                indexLabel.indexType().isUnique()) {
+            if (indexLabel.indexType().isSecondary()) {
                 return true;
             }
         }
