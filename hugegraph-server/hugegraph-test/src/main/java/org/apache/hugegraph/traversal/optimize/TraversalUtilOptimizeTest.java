@@ -61,6 +61,16 @@ public class TraversalUtilOptimizeTest {
     }
 
     @Test
+    public void testIndexLabelOrNullWithMissingIndexLabel() {
+        HugeGraph graph = Mockito.mock(HugeGraph.class);
+        Id id = IdGenerator.of(1L);
+        Mockito.when(graph.indexLabel(id))
+               .thenThrow(new IllegalArgumentException("missing"));
+
+        Assert.assertNull(TraversalUtil.indexLabelOrNull(graph, id));
+    }
+
+    @Test
     public void testCanExtractHasContainerWithNonTextProperty() {
         HugeGraph graph = Mockito.mock(HugeGraph.class);
         PropertyKey age = propertyKey(1L, "age", DataType.INT);

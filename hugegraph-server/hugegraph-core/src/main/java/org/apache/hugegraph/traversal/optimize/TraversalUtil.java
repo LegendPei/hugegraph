@@ -309,8 +309,9 @@ public final class TraversalUtil {
                                            SchemaLabel schemaLabel,
                                            PropertyKey pkey) {
         for (Id id : schemaLabel.indexLabels()) {
-            IndexLabel indexLabel = graph.indexLabel(id);
-            if (!matchSingleFieldIndex(indexLabel, pkey)) {
+            IndexLabel indexLabel = indexLabelOrNull(graph, id);
+            if (indexLabel == null ||
+                !matchSingleFieldIndex(indexLabel, pkey)) {
                 continue;
             }
             if (indexLabel.indexType().isSecondary()) {
@@ -324,8 +325,9 @@ public final class TraversalUtil {
                                          SchemaLabel schemaLabel,
                                          PropertyKey pkey) {
         for (Id id : schemaLabel.indexLabels()) {
-            IndexLabel indexLabel = graph.indexLabel(id);
-            if (!matchSingleFieldIndex(indexLabel, pkey)) {
+            IndexLabel indexLabel = indexLabelOrNull(graph, id);
+            if (indexLabel == null ||
+                !matchSingleFieldIndex(indexLabel, pkey)) {
                 continue;
             }
             if (indexLabel.indexType().isRange()) {
@@ -333,6 +335,14 @@ public final class TraversalUtil {
             }
         }
         return false;
+    }
+
+    static IndexLabel indexLabelOrNull(HugeGraph graph, Id id) {
+        try {
+            return graph.indexLabel(id);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private static boolean matchSingleFieldIndex(IndexLabel indexLabel,
