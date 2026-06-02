@@ -253,6 +253,27 @@ public class CountStrategyCoreTest extends BaseCoreTest {
         Assert.assertEquals(1, graphStep.getHasContainers().size());
         Assert.assertEquals("vp2", graphStep.getHasContainers().get(0).getKey());
         Assert.assertTrue(hasRemainingHasStep(traversal, "vp4"));
+        Assert.assertFalse(hasRemainingHasStep(traversal, "vp2"));
+        Assert.assertEquals(1L, traversal.next());
+    }
+
+    @Test
+    public void testMatchWithIdentityKeepsNoIndexConditionLocal() {
+        this.initMatchNoIndexSchema();
+        this.initMatchNoIndexGraph();
+
+        GraphTraversal<Vertex, Long> traversal = graph().traversal().V()
+                                                        .has("vp4", P.neq("J2O"))
+                                                        .identity()
+                                                        .match(__.<Vertex>as("s")
+                                                                 .has("vp2")
+                                                                 .as("m"))
+                                                        .<Vertex>select("m")
+                                                        .count();
+
+        HugeGraphStep<?, ?> graphStep = applyAndGetGraphStep(traversal);
+        Assert.assertEquals(0, graphStep.getHasContainers().size());
+        Assert.assertTrue(hasRemainingHasStep(traversal, "vp4"));
         Assert.assertEquals(1L, traversal.next());
     }
 

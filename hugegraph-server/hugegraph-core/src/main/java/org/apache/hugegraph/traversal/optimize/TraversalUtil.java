@@ -181,7 +181,16 @@ public final class TraversalUtil {
                  */
                 if (followedByMatchStep(step) &&
                     hasUnusableMatchPredicate(newStep, holder)) {
-                    extractUsableHasContainers(newStep, holder);
+                    List<HasContainer> extracted =
+                            extractUsableHasContainers(newStep, holder);
+                    for (HasContainer has : extracted) {
+                        holder.removeHasContainer(has);
+                    }
+                    if (holder.getHasContainers().isEmpty()) {
+                        TraversalHelper.copyLabels(step, step.getPreviousStep(),
+                                                   false);
+                        traversal.removeStep(step);
+                    }
                     step = nextStep;
                     continue;
                 }
@@ -199,7 +208,9 @@ public final class TraversalUtil {
 
     private static boolean followedByMatchStep(Step<?, ?> step) {
         Step<?, ?> next = step.getNextStep();
-        while (next instanceof HasStep || next instanceof NoOpBarrierStep) {
+        while (next instanceof HasStep ||
+               next instanceof NoOpBarrierStep ||
+               next instanceof IdentityStep) {
             next = next.getNextStep();
         }
         return next instanceof MatchStep;
@@ -219,8 +230,9 @@ public final class TraversalUtil {
         return false;
     }
 
-    private static void extractUsableHasContainers(HugeGraphStep<?, ?> step,
-                                                   HasContainerHolder holder) {
+    private static List<HasContainer> extractUsableHasContainers(
+            HugeGraphStep<?, ?> step, HasContainerHolder holder) {
+        List<HasContainer> extracted = new ArrayList<>();
         HugeGraph graph = tryGetGraph(step);
         for (HasContainer has : holder.getHasContainers()) {
             if (hasMatchIndexSensitivePredicate(has) &&
@@ -230,7 +242,9 @@ public final class TraversalUtil {
             if (!GraphStep.processHasContainerIds(step, has)) {
                 step.addHasContainer(has);
             }
+            extracted.add(has);
         }
+        return extracted;
     }
 
     private static boolean hasMatchIndexSensitivePredicate(HasContainer has) {
