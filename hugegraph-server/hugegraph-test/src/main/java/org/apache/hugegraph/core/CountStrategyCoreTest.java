@@ -359,6 +359,26 @@ public class CountStrategyCoreTest extends BaseCoreTest {
     }
 
     @Test
+    public void testMatchWithBooleanExistsConditionKeepsHas() {
+        this.initMatchNoIndexSchema();
+        graph().schema().indexLabel("vl1ByVp2").onV("vl1")
+               .by("vp2").secondary().create();
+        this.initMatchNoIndexGraph();
+
+        GraphTraversal<Vertex, Long> traversal = graph().traversal().V()
+                                                        .has("vp2", P.neq(null))
+                                                        .match(__.<Vertex>as("s")
+                                                                 .has("vp2", true)
+                                                                 .as("m"))
+                                                        .<Vertex>select("m")
+                                                        .count();
+
+        HugeGraphStep<?, ?> graphStep = applyAndGetGraphStep(traversal);
+        Assert.assertEquals(0, graphStep.getHasContainers().size());
+        Assert.assertEquals(1L, traversal.next());
+    }
+
+    @Test
     public void testMatchWithIdentityKeepsNoIndexConditionLocal() {
         this.initMatchNoIndexSchema();
         this.initMatchNoIndexGraph();

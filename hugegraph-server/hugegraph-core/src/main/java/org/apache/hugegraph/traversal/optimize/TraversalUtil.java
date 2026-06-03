@@ -233,11 +233,11 @@ public final class TraversalUtil {
         List<HasContainer> extracted = new ArrayList<>();
         HugeGraph graph = tryGetGraph(step);
         for (HasContainer has : holder.getHasContainers()) {
-            if (!canExtractHasContainer(graph, has)) {
-                continue;
-            }
             if (hasMatchIndexSensitivePredicate(has) &&
                 !hasUsableMatchIndex(graph, step, has)) {
+                continue;
+            }
+            if (!canExtractHasContainer(graph, has)) {
                 continue;
             }
             if (!GraphStep.processHasContainerIds(step, has)) {
@@ -249,6 +249,9 @@ public final class TraversalUtil {
     }
 
     private static boolean hasMatchIndexSensitivePredicate(HasContainer has) {
+        if (hasNullPredicate(has)) {
+            return true;
+        }
         List<P<Object>> predicates = new ArrayList<>();
         collectPredicates(predicates, ImmutableList.of(has.getPredicate()));
         for (P<Object> pred : predicates) {
@@ -268,14 +271,17 @@ public final class TraversalUtil {
         if (isSysProp(has.getKey())) {
             return false;
         }
-        if (!canExtractHasContainer(graph, has)) {
-            return false;
-        }
 
         PropertyKey pkey;
         try {
             pkey = graph.propertyKey(has.getKey());
         } catch (NotFoundException e) {
+            return false;
+        }
+        if (!hasOnlyUsableNeqPredicates(pkey, has)) {
+            return false;
+        }
+        if (!canExtractHasContainer(graph, has)) {
             return false;
         }
 
@@ -303,6 +309,37 @@ public final class TraversalUtil {
             }
         }
         return seen;
+    }
+
+    private static boolean hasOnlyUsableNeqPredicates(PropertyKey pkey,
+                                                      HasContainer has) {
+        if (hasNullPredicate(has)) {
+            return false;
+        }
+        List<P<Object>> predicates = new ArrayList<>();
+        collectPredicates(predicates, ImmutableList.of(has.getPredicate()));
+        for (P<Object> pred : predicates) {
+            if (pred.getBiPredicate() != Compare.neq) {
+                continue;
+            }
+            if (pkey.dataType() == DataType.BOOLEAN &&
+                pred.getValue() instanceof Boolean) {
+                continue;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean hasNullPredicate(HasContainer has) {
+        List<P<Object>> predicates = new ArrayList<>();
+        collectPredicates(predicates, ImmutableList.of(has.getPredicate()));
+        for (P<Object> pred : predicates) {
+            if (pred.getValue() == null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean hasBooleanIndex(HugeGraph graph,
@@ -429,6 +466,9 @@ public final class TraversalUtil {
         try {
             pkey = graph.propertyKey(has.getKey());
         } catch (NotFoundException e) {
+            return false;
+        }
+        if (hasNullPredicate(has)) {
             return false;
         }
         if (!pkey.dataType().isText()) {
@@ -958,6 +998,9 @@ public final class TraversalUtil {
         List<P<Object>> leafPredicates = new ArrayList<>();
         collectPredicates(leafPredicates, ImmutableList.of(predicate));
         for (P<Object> pred : leafPredicates) {
+            if (pred.getValue() == null) {
+                continue;
+            }
             Object value = validPropertyValue(pred.getValue(), pkey);
             pred.setValue(value);
         }
