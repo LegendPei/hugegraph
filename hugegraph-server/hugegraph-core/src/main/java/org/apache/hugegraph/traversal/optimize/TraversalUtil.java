@@ -998,7 +998,8 @@ public final class TraversalUtil {
         List<P<Object>> leafPredicates = new ArrayList<>();
         collectPredicates(leafPredicates, ImmutableList.of(predicate));
         for (P<Object> pred : leafPredicates) {
-            if (pred.getValue() == null) {
+            if (pred.getBiPredicate() == Compare.neq &&
+                pred.getValue() == null) {
                 continue;
             }
             Object value = validPropertyValue(pred.getValue(), pkey);
