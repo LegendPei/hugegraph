@@ -338,7 +338,6 @@ public final class BytesBuffer extends OutputStream {
 
     public BytesBuffer writeBigBytes(byte[] bytes) {
         if (bytes.length > BLOB_LEN_MAX) {
-            // TODO: note the max blob size depends on max buffer capacity
             E.checkArgument(false,
                             "The max length of bytes is %s, but got %s",
                             BLOB_LEN_MAX, bytes.length);
