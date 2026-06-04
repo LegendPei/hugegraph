@@ -234,7 +234,7 @@ public final class TraversalUtil {
         HugeGraph graph = tryGetGraph(step);
         for (HasContainer has : holder.getHasContainers()) {
             if (hasMatchIndexSensitivePredicate(has) &&
-                !hasUsableMatchIndex(graph, step, has)) {
+                (graph == null || !hasUsableMatchIndex(graph, step, has))) {
                 continue;
             }
             if (!canExtractHasContainer(graph, has)) {

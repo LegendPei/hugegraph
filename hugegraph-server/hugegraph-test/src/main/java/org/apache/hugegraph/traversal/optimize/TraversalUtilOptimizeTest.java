@@ -127,6 +127,20 @@ public class TraversalUtilOptimizeTest {
     }
 
     @Test
+    public void testExtractHasContainerKeepsMatchRangeWithoutGraph() {
+        Traversal.Admin<?, ?> traversal = __.V()
+                                           .has("age", P.gt(18))
+                                           .match(__.as("v").identity().as("m"))
+                                           .asAdmin();
+        HugeGraphStep<?, ?> newStep = replaceGraphStep(traversal);
+
+        TraversalUtil.extractHasContainer(newStep, traversal);
+
+        Assert.assertTrue(newStep.getHasContainers().isEmpty());
+        Assert.assertTrue(hasStepExists(traversal));
+    }
+
+    @Test
     public void testExtractHasContainerKeepsTextBetweenGraphHasStep() {
         HugeGraph graph = Mockito.mock(HugeGraph.class);
         PropertyKey name = propertyKey(1L, "name", DataType.TEXT);
