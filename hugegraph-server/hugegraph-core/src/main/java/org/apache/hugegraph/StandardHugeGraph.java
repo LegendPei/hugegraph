@@ -48,6 +48,7 @@ import org.apache.hugegraph.backend.id.IdGenerator;
 import org.apache.hugegraph.backend.id.SnowflakeIdGenerator;
 import org.apache.hugegraph.backend.query.Query;
 import org.apache.hugegraph.backend.serializer.AbstractSerializer;
+import org.apache.hugegraph.backend.serializer.BytesBuffer;
 import org.apache.hugegraph.backend.serializer.SerializerFactory;
 import org.apache.hugegraph.backend.store.BackendFeatures;
 import org.apache.hugegraph.backend.store.BackendProviderFactory;
@@ -233,6 +234,8 @@ public class StandardHugeGraph implements HugeGraph {
 
         LockUtil.init(this.spaceGraphName());
 
+        BytesBuffer.setMaxBufferCapacity(
+                config.get(CoreOptions.SERIALIZER_BUFFER_MAX_CAPACITY));
         MemoryManager.setMemoryMode(
                 MemoryManager.MemoryMode.fromValue(config.get(CoreOptions.MEMORY_MODE)));
         MemoryManager.setMaxMemoryCapacityInBytes(config.get(CoreOptions.MAX_MEMORY_CAPACITY));

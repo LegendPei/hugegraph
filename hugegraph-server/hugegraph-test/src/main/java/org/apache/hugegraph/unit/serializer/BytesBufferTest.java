@@ -27,10 +27,14 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.UUID;
 
+import org.apache.hugegraph.HugeFactory;
+import org.apache.hugegraph.HugeGraph;
 import org.apache.hugegraph.backend.id.Id;
 import org.apache.hugegraph.backend.id.IdGenerator;
 import org.apache.hugegraph.backend.id.IdGenerator.UuidId;
 import org.apache.hugegraph.backend.serializer.BytesBuffer;
+import org.apache.hugegraph.config.CoreOptions;
+import org.apache.hugegraph.config.HugeConfig;
 import org.apache.hugegraph.schema.PropertyKey;
 import org.apache.hugegraph.testutil.Assert;
 import org.apache.hugegraph.type.define.Cardinality;
@@ -38,12 +42,19 @@ import org.apache.hugegraph.type.define.DataType;
 import org.apache.hugegraph.unit.BaseUnitTest;
 import org.apache.hugegraph.unit.FakeObjects;
 import org.apache.hugegraph.util.Blob;
+import org.apache.hugegraph.util.LZ4Util;
+import org.junit.After;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 public class BytesBufferTest extends BaseUnitTest {
+
+    @After
+    public void tearDown() {
+        BytesBuffer.setMaxBufferCapacity(BytesBuffer.MAX_BUFFER_CAPACITY);
+    }
 
     @Test
     public void testAllocate() {
@@ -67,6 +78,87 @@ public class BytesBufferTest extends BaseUnitTest {
         buf0.write(new byte[4]);
         Assert.assertArrayEquals(new byte[]{0, 0, 0, 0},
                                  buf0.bytes());
+    }
+
+    @Test
+    public void testAllocateWithMaxBufferCapacity() {
+        Assert.assertEquals(BytesBuffer.MAX_BUFFER_CAPACITY,
+                            BytesBuffer.maxBufferCapacity());
+
+        BytesBuffer.setMaxBufferCapacity(128);
+        Assert.assertEquals(128, BytesBuffer.maxBufferCapacity());
+        Assert.assertEquals(128, BytesBuffer.allocate(128).array().length);
+
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            BytesBuffer.allocate(129);
+        }, e -> {
+            Assert.assertContains("Capacity 129 exceeds max buffer " +
+                                  "capacity: 128",
+                                  e.getMessage());
+        });
+    }
+
+    @Test
+    public void testResizeWithMaxBufferCapacity() {
+        BytesBuffer.setMaxBufferCapacity(128);
+        BytesBuffer buffer = BytesBuffer.allocate(64);
+        buffer.write(new byte[64]);
+
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            buffer.write((byte) 1);
+        }, e -> {
+            Assert.assertContains("Capacity 129 exceeds max buffer " +
+                                  "capacity: 128",
+                                  e.getMessage());
+        });
+    }
+
+    @Test
+    public void testSetMaxBufferCapacityWithInvalidValue() {
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            BytesBuffer.setMaxBufferCapacity(BytesBuffer.DEFAULT_CAPACITY - 1);
+        }, e -> {
+            Assert.assertContains("Max buffer capacity must be in range",
+                                  e.getMessage());
+        });
+
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            BytesBuffer.setMaxBufferCapacity(
+                    BytesBuffer.MAX_BUFFER_CAPACITY_UPPER_BOUND + 1);
+        }, e -> {
+            Assert.assertContains("Max buffer capacity must be in range",
+                                  e.getMessage());
+        });
+    }
+
+    @Test
+    public void testLZ4DecompressWithMaxBufferCapacity() {
+        byte[] bytes = genBytes(256);
+        BytesBuffer compressed = LZ4Util.compress(bytes, 64);
+
+        BytesBuffer.setMaxBufferCapacity(128);
+
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            LZ4Util.decompress(compressed.bytes(), 64);
+        }, e -> {
+            Assert.assertContains("exceeds max buffer capacity: 128",
+                                  e.getMessage());
+        });
+    }
+
+    @Test
+    public void testMaxBufferCapacityFromGraphConfig() throws Exception {
+        HugeConfig config = FakeObjects.newConfig();
+        config.setProperty(CoreOptions.STORE.name(), "buffer_capacity");
+        config.setProperty(CoreOptions.SERIALIZER_BUFFER_MAX_CAPACITY.name(),
+                           256);
+
+        HugeGraph graph = HugeFactory.open(config);
+        try {
+            Assert.assertEquals(256, BytesBuffer.maxBufferCapacity());
+        } finally {
+            graph.close();
+        }
     }
 
     @Test

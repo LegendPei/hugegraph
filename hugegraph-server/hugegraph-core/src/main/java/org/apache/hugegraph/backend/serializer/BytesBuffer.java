@@ -77,11 +77,14 @@ public final class BytesBuffer extends OutputStream {
 
     public static final int DEFAULT_CAPACITY = 64;
     public static final int MAX_BUFFER_CAPACITY = 128 * 1024 * 1024; // 128M
+    public static final int MAX_BUFFER_CAPACITY_UPPER_BOUND = (int) Bytes.GB;
 
     public static final int BUF_EDGE_ID = 128;
     public static final int BUF_PROPERTY = 64;
 
     public static final byte[] BYTES_EMPTY = new byte[0];
+
+    private static volatile int maxBufferCapacity = MAX_BUFFER_CAPACITY;
 
     private ByteBuffer buffer;
     private final boolean resize;
@@ -91,10 +94,11 @@ public final class BytesBuffer extends OutputStream {
     }
 
     public BytesBuffer(int capacity) {
-        if (capacity > MAX_BUFFER_CAPACITY) {
+        int maxCapacity = maxBufferCapacity();
+        if (capacity > maxCapacity) {
             E.checkArgument(false,
                             "Capacity %s exceeds max buffer capacity: %s",
-                            capacity, MAX_BUFFER_CAPACITY);
+                            capacity, maxCapacity);
         }
         this.buffer = ByteBuffer.allocate(capacity);
         this.resize = true;
@@ -120,6 +124,20 @@ public final class BytesBuffer extends OutputStream {
 
     public static BytesBuffer wrap(byte[] array, int offset, int length) {
         return new BytesBuffer(ByteBuffer.wrap(array, offset, length));
+    }
+
+    public static int maxBufferCapacity() {
+        return maxBufferCapacity;
+    }
+
+    public static void setMaxBufferCapacity(int capacity) {
+        E.checkArgument(capacity >= DEFAULT_CAPACITY &&
+                        capacity <= MAX_BUFFER_CAPACITY_UPPER_BOUND,
+                        "Max buffer capacity must be in range [%s, %s], " +
+                        "but got %s",
+                        DEFAULT_CAPACITY, MAX_BUFFER_CAPACITY_UPPER_BOUND,
+                        capacity);
+        maxBufferCapacity = capacity;
     }
 
     public ByteBuffer asByteBuffer() {
@@ -174,13 +192,15 @@ public final class BytesBuffer extends OutputStream {
         }
 
         // Extra capacity as buffer
-        int newCapacity = size + this.buffer.limit() + DEFAULT_CAPACITY;
-        if (newCapacity > MAX_BUFFER_CAPACITY) {
+        long newCapacity = (long) size + this.buffer.limit() +
+                           DEFAULT_CAPACITY;
+        int maxCapacity = maxBufferCapacity();
+        if (newCapacity > maxCapacity) {
             E.checkArgument(false,
                             "Capacity %s exceeds max buffer capacity: %s",
-                            newCapacity, MAX_BUFFER_CAPACITY);
+                            newCapacity, maxCapacity);
         }
-        ByteBuffer newBuffer = ByteBuffer.allocate(newCapacity);
+        ByteBuffer newBuffer = ByteBuffer.allocate((int) newCapacity);
         this.buffer.flip();
         newBuffer.put(this.buffer);
         this.buffer = newBuffer;
@@ -318,7 +338,7 @@ public final class BytesBuffer extends OutputStream {
 
     public BytesBuffer writeBigBytes(byte[] bytes) {
         if (bytes.length > BLOB_LEN_MAX) {
-            // TODO: note the max blob size should be 128MB (due to MAX_BUFFER_CAPACITY)
+            // TODO: note the max blob size depends on max buffer capacity
             E.checkArgument(false,
                             "The max length of bytes is %s, but got %s",
                             BLOB_LEN_MAX, bytes.length);
