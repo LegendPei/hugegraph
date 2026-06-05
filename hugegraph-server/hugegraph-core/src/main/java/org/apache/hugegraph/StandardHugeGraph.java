@@ -234,7 +234,7 @@ public class StandardHugeGraph implements HugeGraph {
 
         LockUtil.init(this.spaceGraphName());
 
-        BytesBuffer.setMaxBufferCapacity(
+        BytesBuffer.initMaxBufferCapacity(
                 config.get(CoreOptions.SERIALIZER_BUFFER_MAX_CAPACITY));
         MemoryManager.setMemoryMode(
                 MemoryManager.MemoryMode.fromValue(config.get(CoreOptions.MEMORY_MODE)));

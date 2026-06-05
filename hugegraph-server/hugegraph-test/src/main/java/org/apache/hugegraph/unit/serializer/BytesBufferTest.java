@@ -18,6 +18,7 @@
 package org.apache.hugegraph.unit.serializer;
 
 import java.awt.Point;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Iterator;
@@ -44,6 +45,7 @@ import org.apache.hugegraph.unit.FakeObjects;
 import org.apache.hugegraph.util.Blob;
 import org.apache.hugegraph.util.LZ4Util;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableList;
@@ -51,9 +53,20 @@ import com.google.common.collect.ImmutableSet;
 
 public class BytesBufferTest extends BaseUnitTest {
 
+    @Before
+    public void setUp() throws Exception {
+        resetMaxBufferCapacity();
+    }
+
     @After
-    public void tearDown() {
-        BytesBuffer.setMaxBufferCapacity(BytesBuffer.MAX_BUFFER_CAPACITY);
+    public void tearDown() throws Exception {
+        resetMaxBufferCapacity();
+    }
+
+    private static void resetMaxBufferCapacity() throws Exception {
+        Field field = BytesBuffer.class.getDeclaredField("maxBufferCapacity");
+        field.setAccessible(true);
+        field.set(null, null);
     }
 
     @Test
@@ -85,7 +98,9 @@ public class BytesBufferTest extends BaseUnitTest {
         Assert.assertEquals(BytesBuffer.MAX_BUFFER_CAPACITY,
                             BytesBuffer.maxBufferCapacity());
 
-        BytesBuffer.setMaxBufferCapacity(128);
+        BytesBuffer.initMaxBufferCapacity(128);
+        Assert.assertEquals(128, BytesBuffer.maxBufferCapacity());
+        BytesBuffer.initMaxBufferCapacity(128);
         Assert.assertEquals(128, BytesBuffer.maxBufferCapacity());
         Assert.assertEquals(128, BytesBuffer.allocate(128).array().length);
 
@@ -100,9 +115,14 @@ public class BytesBufferTest extends BaseUnitTest {
 
     @Test
     public void testResizeWithMaxBufferCapacity() {
-        BytesBuffer.setMaxBufferCapacity(128);
+        BytesBuffer.initMaxBufferCapacity(128);
         BytesBuffer buffer = BytesBuffer.allocate(64);
         buffer.write(new byte[64]);
+        buffer.write((byte) 1);
+        Assert.assertEquals(65, buffer.bytes().length);
+        Assert.assertEquals(128, buffer.array().length);
+
+        buffer.write(new byte[63]);
 
         Assert.assertThrows(IllegalArgumentException.class, () -> {
             buffer.write((byte) 1);
@@ -116,14 +136,15 @@ public class BytesBufferTest extends BaseUnitTest {
     @Test
     public void testSetMaxBufferCapacityWithInvalidValue() {
         Assert.assertThrows(IllegalArgumentException.class, () -> {
-            BytesBuffer.setMaxBufferCapacity(BytesBuffer.DEFAULT_CAPACITY - 1);
+            BytesBuffer.initMaxBufferCapacity(
+                    BytesBuffer.DEFAULT_CAPACITY - 1);
         }, e -> {
             Assert.assertContains("Max buffer capacity must be in range",
                                   e.getMessage());
         });
 
         Assert.assertThrows(IllegalArgumentException.class, () -> {
-            BytesBuffer.setMaxBufferCapacity(
+            BytesBuffer.initMaxBufferCapacity(
                     BytesBuffer.MAX_BUFFER_CAPACITY_UPPER_BOUND + 1);
         }, e -> {
             Assert.assertContains("Max buffer capacity must be in range",
@@ -136,7 +157,7 @@ public class BytesBufferTest extends BaseUnitTest {
         byte[] bytes = genBytes(256);
         BytesBuffer compressed = LZ4Util.compress(bytes, 64);
 
-        BytesBuffer.setMaxBufferCapacity(128);
+        BytesBuffer.initMaxBufferCapacity(128);
 
         Assert.assertThrows(IllegalArgumentException.class, () -> {
             LZ4Util.decompress(compressed.bytes(), 64);
@@ -158,6 +179,39 @@ public class BytesBufferTest extends BaseUnitTest {
             Assert.assertEquals(256, BytesBuffer.maxBufferCapacity());
         } finally {
             graph.close();
+        }
+    }
+
+    @Test
+    public void testMaxBufferCapacityRejectsConflictingGraphConfig()
+           throws Exception {
+        HugeConfig config1 = FakeObjects.newConfig();
+        config1.setProperty(CoreOptions.STORE.name(), "buffer_capacity_1");
+        config1.setProperty(CoreOptions.SERIALIZER_BUFFER_MAX_CAPACITY.name(),
+                            256);
+
+        HugeGraph graph1 = HugeFactory.open(config1);
+        try {
+            Assert.assertEquals(256, BytesBuffer.maxBufferCapacity());
+
+            HugeConfig config2 = FakeObjects.newConfig();
+            config2.setProperty(CoreOptions.STORE.name(),
+                                "buffer_capacity_2");
+            config2.setProperty(
+                    CoreOptions.SERIALIZER_BUFFER_MAX_CAPACITY.name(), 512);
+
+            Assert.assertThrows(IllegalArgumentException.class, () -> {
+                HugeFactory.open(config2);
+            }, e -> {
+                Assert.assertContains("process-wide serializer buffer max " +
+                                      "capacity has been initialized to 256",
+                                      e.getMessage());
+                Assert.assertContains("conflicting value 512",
+                                      e.getMessage());
+            });
+            Assert.assertEquals(256, BytesBuffer.maxBufferCapacity());
+        } finally {
+            graph1.close();
         }
     }
 

@@ -83,7 +83,8 @@ public class CoreOptions extends OptionHolder {
     public static final ConfigOption<Integer> SERIALIZER_BUFFER_MAX_CAPACITY =
             new ConfigOption<>(
                     "serializer.buffer_max_capacity",
-                    "The max capacity of one serialization buffer in bytes.",
+                    "The process-wide max capacity of one serialization " +
+                    "buffer in bytes.",
                     rangeInt(BytesBuffer.DEFAULT_CAPACITY,
                              BytesBuffer.MAX_BUFFER_CAPACITY_UPPER_BOUND),
                     BytesBuffer.MAX_BUFFER_CAPACITY

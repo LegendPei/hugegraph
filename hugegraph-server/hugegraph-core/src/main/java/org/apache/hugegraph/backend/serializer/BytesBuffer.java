@@ -84,7 +84,7 @@ public final class BytesBuffer extends OutputStream {
 
     public static final byte[] BYTES_EMPTY = new byte[0];
 
-    private static volatile int maxBufferCapacity = MAX_BUFFER_CAPACITY;
+    private static volatile Integer maxBufferCapacity;
 
     private ByteBuffer buffer;
     private final boolean resize;
@@ -127,17 +127,27 @@ public final class BytesBuffer extends OutputStream {
     }
 
     public static int maxBufferCapacity() {
-        return maxBufferCapacity;
+        Integer capacity = maxBufferCapacity;
+        return capacity != null ? capacity : MAX_BUFFER_CAPACITY;
     }
 
-    public static void setMaxBufferCapacity(int capacity) {
+    public static synchronized void initMaxBufferCapacity(int capacity) {
         E.checkArgument(capacity >= DEFAULT_CAPACITY &&
                         capacity <= MAX_BUFFER_CAPACITY_UPPER_BOUND,
                         "Max buffer capacity must be in range [%s, %s], " +
                         "but got %s",
                         DEFAULT_CAPACITY, MAX_BUFFER_CAPACITY_UPPER_BOUND,
                         capacity);
-        maxBufferCapacity = capacity;
+
+        if (maxBufferCapacity == null) {
+            maxBufferCapacity = capacity;
+            return;
+        }
+
+        E.checkArgument(maxBufferCapacity == capacity,
+                        "The process-wide serializer buffer max capacity has " +
+                        "been initialized to %s, but got conflicting value %s",
+                        maxBufferCapacity, capacity);
     }
 
     public ByteBuffer asByteBuffer() {
@@ -191,15 +201,17 @@ public final class BytesBuffer extends OutputStream {
             E.checkState(false, "Can't resize for wrapped buffer");
         }
 
-        // Extra capacity as buffer
-        long newCapacity = (long) size + this.buffer.limit() +
-                           DEFAULT_CAPACITY;
         int maxCapacity = maxBufferCapacity();
-        if (newCapacity > maxCapacity) {
+        long requiredCapacity = (long) this.buffer.position() + size;
+        if (requiredCapacity > maxCapacity) {
             E.checkArgument(false,
                             "Capacity %s exceeds max buffer capacity: %s",
-                            newCapacity, maxCapacity);
+                            requiredCapacity, maxCapacity);
         }
+
+        // Extra capacity as buffer
+        long newCapacity = Math.min(requiredCapacity + DEFAULT_CAPACITY,
+                                    maxCapacity);
         ByteBuffer newBuffer = ByteBuffer.allocate((int) newCapacity);
         this.buffer.flip();
         newBuffer.put(this.buffer);
