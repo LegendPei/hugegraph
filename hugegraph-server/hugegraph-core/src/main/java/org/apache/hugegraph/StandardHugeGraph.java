@@ -232,8 +232,8 @@ public class StandardHugeGraph implements HugeGraph {
         this.readMode = GraphReadMode.OLTP_ONLY;
         this.schedulerType = config.get(CoreOptions.SCHEDULER_TYPE);
 
-        LockUtil.init(this.spaceGraphName());
-
+        // Init process-wide static configs before lock, so that validation
+        // failures won't leave stale lock groups in LockManager.
         BytesBuffer.initMaxBufferCapacity(
                 config.get(CoreOptions.SERIALIZER_BUFFER_MAX_CAPACITY));
         MemoryManager.setMemoryMode(
@@ -242,6 +242,8 @@ public class StandardHugeGraph implements HugeGraph {
         MemoryManager.setMaxMemoryCapacityForOneQuery(
                 config.get(CoreOptions.ONE_QUERY_MAX_MEMORY_CAPACITY));
         RoundUtil.setAlignment(config.get(CoreOptions.MEMORY_ALIGNMENT));
+
+        LockUtil.init(this.spaceGraphName());
 
         try {
             this.storeProvider = this.loadStoreProvider();
