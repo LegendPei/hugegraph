@@ -216,6 +216,35 @@ public class BytesBufferTest extends BaseUnitTest {
     }
 
     @Test
+    public void testMaxBufferCapacityInheritsProcessWideValue()
+           throws Exception {
+        HugeConfig config1 = FakeObjects.newConfig();
+        config1.setProperty(CoreOptions.STORE.name(), "buffer_inherit_1");
+        config1.setProperty(CoreOptions.SERIALIZER_BUFFER_MAX_CAPACITY.name(),
+                            256);
+
+        HugeGraph graph1 = HugeFactory.open(config1);
+        try {
+            Assert.assertEquals(256, BytesBuffer.maxBufferCapacity());
+
+            // Second graph omits SERIALIZER_BUFFER_MAX_CAPACITY, so it
+            // receives the default value and should inherit the process-wide
+            // cap (256) instead of throwing a conflict error.
+            HugeConfig config2 = FakeObjects.newConfig();
+            config2.setProperty(CoreOptions.STORE.name(), "buffer_inherit_2");
+
+            HugeGraph graph2 = HugeFactory.open(config2);
+            try {
+                Assert.assertEquals(256, BytesBuffer.maxBufferCapacity());
+            } finally {
+                graph2.close();
+            }
+        } finally {
+            graph1.close();
+        }
+    }
+
+    @Test
     public void testWrap() {
         BytesBuffer buf4 = BytesBuffer.wrap(new byte[]{1, 2, 3, 4});
         Assert.assertArrayEquals(new byte[]{1, 2, 3, 4}, buf4.array());

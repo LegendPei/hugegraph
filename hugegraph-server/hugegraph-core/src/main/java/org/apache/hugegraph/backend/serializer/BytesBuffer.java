@@ -144,7 +144,17 @@ public final class BytesBuffer extends OutputStream {
             return;
         }
 
-        E.checkArgument(maxBufferCapacity == capacity,
+        // When already initialized, a graph that didn't explicitly set
+        // this option will receive the default value (MAX_BUFFER_CAPACITY).
+        // Treat that as "inherit process-wide value" and skip the conflict
+        // check, so that one custom graph doesn't block unrelated graphs
+        // that use the default config.
+        if (maxBufferCapacity == capacity ||
+            capacity == MAX_BUFFER_CAPACITY) {
+            return;
+        }
+
+        E.checkArgument(false,
                         "The process-wide serializer buffer max capacity has " +
                         "been initialized to %s, but got conflicting value %s",
                         maxBufferCapacity, capacity);
