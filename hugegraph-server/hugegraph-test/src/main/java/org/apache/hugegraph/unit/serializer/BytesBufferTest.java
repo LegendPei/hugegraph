@@ -134,6 +134,37 @@ public class BytesBufferTest extends BaseUnitTest {
     }
 
     @Test
+    public void testResizeCappedAtMaxBufferCapacity() {
+        BytesBuffer.initMaxBufferCapacity(128);
+
+        // Allocate small buffer and fill it completely
+        BytesBuffer buffer = BytesBuffer.allocate(64);
+        buffer.write(new byte[64]);
+
+        // Writing 2 more bytes triggers resize:
+        //   requiredCapacity = 64 + 2 = 66
+        //   naive newCapacity = 66 + DEFAULT_CAPACITY(64) = 130
+        //   Math.min(130, maxCapacity=128) = 128  ← capped
+        buffer.write(new byte[2]);
+        Assert.assertEquals(128, buffer.array().length);
+        Assert.assertEquals(66, buffer.bytes().length);
+
+        // Buffer now at capacity 128, position 66, remaining 62.
+        // Fill remaining space — should succeed without resize.
+        buffer.write(new byte[62]);
+        Assert.assertEquals(128, buffer.bytes().length);
+
+        // One more byte exceeds the max — should throw.
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            buffer.write((byte) 1);
+        }, e -> {
+            Assert.assertContains("Capacity 129 exceeds max buffer " +
+                                  "capacity: 128",
+                                  e.getMessage());
+        });
+    }
+
+    @Test
     public void testSetMaxBufferCapacityWithInvalidValue() {
         Assert.assertThrows(IllegalArgumentException.class, () -> {
             BytesBuffer.initMaxBufferCapacity(
@@ -153,6 +184,14 @@ public class BytesBufferTest extends BaseUnitTest {
     }
 
     @Test
+    public void testSetMaxBufferCapacityAtUpperBound() {
+        BytesBuffer.initMaxBufferCapacity(
+                BytesBuffer.MAX_BUFFER_CAPACITY_UPPER_BOUND);
+        Assert.assertEquals(BytesBuffer.MAX_BUFFER_CAPACITY_UPPER_BOUND,
+                            BytesBuffer.maxBufferCapacity());
+    }
+
+    @Test
     public void testLZ4DecompressWithMaxBufferCapacity() {
         byte[] bytes = genBytes(256);
         BytesBuffer compressed = LZ4Util.compress(bytes, 64);
@@ -165,6 +204,20 @@ public class BytesBufferTest extends BaseUnitTest {
             Assert.assertContains("exceeds max buffer capacity: 128",
                                   e.getMessage());
         });
+    }
+
+    @Test
+    public void testLZ4DecompressSucceedsWithCustomMaxBufferCapacity() {
+        byte[] bytes = genBytes(64);
+        BytesBuffer compressed = LZ4Util.compress(bytes, 64);
+
+        // Set a custom max that is large enough for the decompressed data
+        BytesBuffer.initMaxBufferCapacity(256);
+
+        BytesBuffer decompressed = LZ4Util.decompress(compressed.bytes(), 64);
+        // Verify the custom cap is active and decompression succeeded
+        Assert.assertEquals(256, BytesBuffer.maxBufferCapacity());
+        Assert.assertArrayEquals(bytes, decompressed.bytes());
     }
 
     @Test
