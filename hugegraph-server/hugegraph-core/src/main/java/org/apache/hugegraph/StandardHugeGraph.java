@@ -234,8 +234,11 @@ public class StandardHugeGraph implements HugeGraph {
 
         // Init process-wide static configs before lock, so that validation
         // failures won't leave stale lock groups in LockManager.
+        boolean explicitBufferCapacity = config.containsKey(
+                CoreOptions.SERIALIZER_BUFFER_MAX_CAPACITY.name());
         BytesBuffer.initMaxBufferCapacity(
-                config.get(CoreOptions.SERIALIZER_BUFFER_MAX_CAPACITY));
+                config.get(CoreOptions.SERIALIZER_BUFFER_MAX_CAPACITY),
+                explicitBufferCapacity);
         MemoryManager.setMemoryMode(
                 MemoryManager.MemoryMode.fromValue(config.get(CoreOptions.MEMORY_MODE)));
         MemoryManager.setMaxMemoryCapacityInBytes(config.get(CoreOptions.MAX_MEMORY_CAPACITY));

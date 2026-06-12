@@ -132,6 +132,11 @@ public final class BytesBuffer extends OutputStream {
     }
 
     public static synchronized void initMaxBufferCapacity(int capacity) {
+        initMaxBufferCapacity(capacity, true);
+    }
+
+    public static synchronized void initMaxBufferCapacity(int capacity,
+                                                          boolean explicit) {
         E.checkArgument(capacity >= DEFAULT_CAPACITY &&
                         capacity <= MAX_BUFFER_CAPACITY_UPPER_BOUND,
                         "Max buffer capacity must be in range [%s, %s], " +
@@ -139,18 +144,16 @@ public final class BytesBuffer extends OutputStream {
                         DEFAULT_CAPACITY, MAX_BUFFER_CAPACITY_UPPER_BOUND,
                         capacity);
 
+        if (!explicit) {
+            return;
+        }
+
         if (maxBufferCapacity == null) {
             maxBufferCapacity = capacity;
             return;
         }
 
-        // When already initialized, a graph that didn't explicitly set
-        // this option will receive the default value (MAX_BUFFER_CAPACITY).
-        // Treat that as "inherit process-wide value" and skip the conflict
-        // check, so that one custom graph doesn't block unrelated graphs
-        // that use the default config.
-        if (maxBufferCapacity == capacity ||
-            capacity == MAX_BUFFER_CAPACITY) {
+        if (maxBufferCapacity == capacity) {
             return;
         }
 
