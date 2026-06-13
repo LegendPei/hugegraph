@@ -145,6 +145,9 @@ public final class BytesBuffer extends OutputStream {
                         capacity);
 
         if (!explicit) {
+            if (maxBufferCapacity == null) {
+                maxBufferCapacity = MAX_BUFFER_CAPACITY;
+            }
             return;
         }
 
