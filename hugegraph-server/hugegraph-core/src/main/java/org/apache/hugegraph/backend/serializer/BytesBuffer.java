@@ -160,10 +160,10 @@ public final class BytesBuffer extends OutputStream {
             return;
         }
 
-        E.checkArgument(false,
-                        "The process-wide serializer buffer max capacity has " +
-                        "been initialized to %s, but got conflicting value %s",
-                        maxBufferCapacity, capacity);
+        throw new IllegalArgumentException(String.format(
+                "The process-wide serializer buffer max capacity has been " +
+                "initialized to %s, but got conflicting value %s",
+                maxBufferCapacity, capacity));
     }
 
     public ByteBuffer asByteBuffer() {

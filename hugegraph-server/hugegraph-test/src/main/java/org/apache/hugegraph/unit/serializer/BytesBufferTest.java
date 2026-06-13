@@ -144,17 +144,17 @@ public class BytesBufferTest extends BaseUnitTest {
         // Writing 2 more bytes triggers resize:
         //   requiredCapacity = 64 + 2 = 66
         //   naive newCapacity = 66 + DEFAULT_CAPACITY(64) = 130
-        //   Math.min(130, maxCapacity=128) = 128  ← capped
+        //   Math.min(130, maxCapacity=128) = 128, capped
         buffer.write(new byte[2]);
         Assert.assertEquals(128, buffer.array().length);
         Assert.assertEquals(66, buffer.bytes().length);
 
         // Buffer now at capacity 128, position 66, remaining 62.
-        // Fill remaining space — should succeed without resize.
+        // Fill remaining space, should succeed without resize.
         buffer.write(new byte[62]);
         Assert.assertEquals(128, buffer.bytes().length);
 
-        // One more byte exceeds the max — should throw.
+        // One more byte exceeds the max, should throw.
         Assert.assertThrows(IllegalArgumentException.class, () -> {
             buffer.write((byte) 1);
         }, e -> {
@@ -188,6 +188,27 @@ public class BytesBufferTest extends BaseUnitTest {
         BytesBuffer.initMaxBufferCapacity(
                 BytesBuffer.MAX_BUFFER_CAPACITY_UPPER_BOUND);
         Assert.assertEquals(BytesBuffer.MAX_BUFFER_CAPACITY_UPPER_BOUND,
+                            BytesBuffer.maxBufferCapacity());
+    }
+
+    @Test
+    public void testDefaultMaxBufferCapacityRejectsLateExplicitInit() {
+        BytesBuffer.initMaxBufferCapacity(BytesBuffer.MAX_BUFFER_CAPACITY,
+                                          false);
+        Assert.assertEquals(BytesBuffer.MAX_BUFFER_CAPACITY,
+                            BytesBuffer.maxBufferCapacity());
+
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            BytesBuffer.initMaxBufferCapacity(256);
+        }, e -> {
+            Assert.assertContains("process-wide serializer buffer max " +
+                                  "capacity has been initialized to " +
+                                  BytesBuffer.MAX_BUFFER_CAPACITY,
+                                  e.getMessage());
+            Assert.assertContains("conflicting value 256",
+                                  e.getMessage());
+        });
+        Assert.assertEquals(BytesBuffer.MAX_BUFFER_CAPACITY,
                             BytesBuffer.maxBufferCapacity());
     }
 
