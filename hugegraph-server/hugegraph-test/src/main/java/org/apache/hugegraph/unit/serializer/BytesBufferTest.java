@@ -192,23 +192,14 @@ public class BytesBufferTest extends BaseUnitTest {
     }
 
     @Test
-    public void testDefaultMaxBufferCapacityRejectsLateExplicitInit() {
+    public void testDefaultMaxBufferCapacityDefersExplicitInit() {
         BytesBuffer.initMaxBufferCapacity(BytesBuffer.MAX_BUFFER_CAPACITY,
                                           false);
         Assert.assertEquals(BytesBuffer.MAX_BUFFER_CAPACITY,
                             BytesBuffer.maxBufferCapacity());
 
-        Assert.assertThrows(IllegalArgumentException.class, () -> {
-            BytesBuffer.initMaxBufferCapacity(256);
-        }, e -> {
-            Assert.assertContains("process-wide serializer buffer max " +
-                                  "capacity has been initialized to " +
-                                  BytesBuffer.MAX_BUFFER_CAPACITY,
-                                  e.getMessage());
-            Assert.assertContains("conflicting value 256",
-                                  e.getMessage());
-        });
-        Assert.assertEquals(BytesBuffer.MAX_BUFFER_CAPACITY,
+        BytesBuffer.initMaxBufferCapacity(256);
+        Assert.assertEquals(256,
                             BytesBuffer.maxBufferCapacity());
     }
 
@@ -319,7 +310,7 @@ public class BytesBufferTest extends BaseUnitTest {
     }
 
     @Test
-    public void testMaxBufferCapacityRejectsExplicitConfigAfterDefaultGraph()
+    public void testMaxBufferCapacityDefersToExplicitConfigAfterDefaultGraph()
            throws Exception {
         HugeConfig config1 = FakeObjects.newConfig();
         config1.setProperty(CoreOptions.STORE.name(), "buffer_default_first");
@@ -335,18 +326,12 @@ public class BytesBufferTest extends BaseUnitTest {
             config2.setProperty(
                     CoreOptions.SERIALIZER_BUFFER_MAX_CAPACITY.name(), 256);
 
-            Assert.assertThrows(IllegalArgumentException.class, () -> {
-                HugeFactory.open(config2);
-            }, e -> {
-                Assert.assertContains("process-wide serializer buffer max " +
-                                      "capacity has been initialized to " +
-                                      BytesBuffer.MAX_BUFFER_CAPACITY,
-                                      e.getMessage());
-                Assert.assertContains("conflicting value 256",
-                                      e.getMessage());
-            });
-            Assert.assertEquals(BytesBuffer.MAX_BUFFER_CAPACITY,
-                                BytesBuffer.maxBufferCapacity());
+            HugeGraph graph2 = HugeFactory.open(config2);
+            try {
+                Assert.assertEquals(256, BytesBuffer.maxBufferCapacity());
+            } finally {
+                graph2.close();
+            }
         } finally {
             graph1.close();
         }
