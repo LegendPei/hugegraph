@@ -335,6 +335,26 @@ public class CountStrategyCoreTest extends BaseCoreTest {
     }
 
     @Test
+    public void testOrConnectiveLabelsAfterNoIndexRangeMatchesLabelTraversal() {
+        this.initConnectiveRangeNoIndexSchema();
+
+        Vertex v1 = graph().addVertex(T.label, "vl1");
+        Vertex v2 = graph().addVertex(T.label, "vl1");
+        Vertex v3 = graph().addVertex(T.label, "vl1");
+        v1.addEdge("el2", v2, "ep4", 0.1F);
+        v1.addEdge("el2", v3, "ep4", 0.5F);
+        v1.addEdge("el3", v2, "ep4", 0.1F);
+        commitTx();
+
+        long count = graph().traversal().E()
+                          .has("ep4", P.lt(0.32696354F))
+                          .or(__.hasLabel("el2"), __.hasLabel("el3"))
+                          .count().next();
+
+        Assert.assertEquals(2L, count);
+    }
+
+    @Test
     public void testPropertyBeforeLabelNoIndexRangeStillThrows() {
         this.initConnectiveRangeNoIndexSchema();
 
@@ -366,6 +386,27 @@ public class CountStrategyCoreTest extends BaseCoreTest {
                    .and(__.has("ep4", P.gt(0.0F)))
                    .count().next();
         });
+    }
+
+    @Test
+    public void testNegativeConnectiveLabelAfterNoIndexRangeStaysLocal() {
+        this.initConnectiveRangeNoIndexSchema();
+
+        Vertex v1 = graph().addVertex(T.label, "vl1");
+        Vertex v2 = graph().addVertex(T.label, "vl1");
+        v1.addEdge("el2", v2, "ep4", 0.1F);
+        commitTx();
+
+        GraphTraversal<Edge, Edge> traversal = graph().traversal().E()
+                                                     .has("ep4",
+                                                          P.lt(0.32696354F))
+                                                     .and(__.hasLabel(P.neq("el2")));
+
+        HugeGraphStep<?, ?> graphStep = applyAndGetGraphStep(traversal);
+        for (HasContainer has : graphStep.getHasContainers()) {
+            Assert.assertNotEquals(T.label.getAccessor(), has.getKey());
+        }
+        Assert.assertTrue(hasRemainingHasStep(traversal, T.label.getAccessor()));
     }
 
     @Test

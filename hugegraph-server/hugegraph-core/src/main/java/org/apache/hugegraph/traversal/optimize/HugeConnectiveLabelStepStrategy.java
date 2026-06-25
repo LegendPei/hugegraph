@@ -27,11 +27,11 @@ import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.AndStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.OrStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.InlineFilterStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
-import org.apache.tinkerpop.gremlin.structure.T;
 
 public final class HugeConnectiveLabelStepStrategy
         extends AbstractTraversalStrategy<TraversalStrategy.OptimizationStrategy>
@@ -70,12 +70,11 @@ public final class HugeConnectiveLabelStepStrategy
 
         for (AndStep<?> step : TraversalHelper.getStepsOfClass(AndStep.class,
                                                                traversal)) {
-            if (!(step.getPreviousStep() instanceof HasStep)) {
-                continue;
-            }
-            for (Traversal.Admin<?, ?> child : step.getLocalChildren()) {
-                markLabelOnlyTraversal(child);
-            }
+            markConnectiveLabelChildren(step, step);
+        }
+        for (OrStep<?> step : TraversalHelper.getStepsOfClass(OrStep.class,
+                                                              traversal)) {
+            markConnectiveLabelChildren(step, step);
         }
 
         for (Step<?, ?> step : traversal.getSteps()) {
@@ -92,13 +91,24 @@ public final class HugeConnectiveLabelStepStrategy
         }
     }
 
-    private static void markLabelOnlyTraversal(Traversal.Admin<?, ?> traversal) {
+    private static void markConnectiveLabelChildren(Step<?, ?> step,
+                                                    TraversalParent parent) {
+        if (!(step.getPreviousStep() instanceof HasStep)) {
+            return;
+        }
+        for (Traversal.Admin<?, ?> child : parent.getLocalChildren()) {
+            markPositiveLabelOnlyTraversal(child);
+        }
+    }
+
+    private static void markPositiveLabelOnlyTraversal(
+            Traversal.Admin<?, ?> traversal) {
         for (Step<?, ?> step : traversal.getSteps()) {
             if (!(step instanceof HasStep)) {
                 return;
             }
             HasStep<?> hasStep = (HasStep<?>) step;
-            if (!hasOnlyLabelContainers(hasStep)) {
+            if (!hasOnlyPositiveLabelContainers(hasStep)) {
                 return;
             }
         }
@@ -108,12 +118,12 @@ public final class HugeConnectiveLabelStepStrategy
         }
     }
 
-    private static boolean hasOnlyLabelContainers(HasStep<?> step) {
+    private static boolean hasOnlyPositiveLabelContainers(HasStep<?> step) {
         if (step.getHasContainers().isEmpty()) {
             return false;
         }
         for (HasContainer has : step.getHasContainers()) {
-            if (!T.label.getAccessor().equals(has.getKey())) {
+            if (!TraversalUtil.isPositiveLabelContainer(has)) {
                 return false;
             }
         }
