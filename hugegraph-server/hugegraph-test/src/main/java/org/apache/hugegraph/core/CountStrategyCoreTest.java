@@ -120,6 +120,16 @@ public class CountStrategyCoreTest extends BaseCoreTest {
         }
     }
 
+    private void initConnectiveRangeNoIndexSchema() {
+        SchemaManager schema = graph().schema();
+        schema.propertyKey("ep4").asFloat().create();
+        schema.vertexLabel("vl1").create();
+        schema.edgeLabel("el2").properties("ep4")
+              .nullableKeys("ep4").link("vl1", "vl1").create();
+        schema.edgeLabel("el3").properties("ep4")
+              .nullableKeys("ep4").link("vl1", "vl1").create();
+    }
+
     @Test
     public void testWhereCountLtNegativeIsAlwaysFalse() {
         this.initSchema();
@@ -283,6 +293,43 @@ public class CountStrategyCoreTest extends BaseCoreTest {
                              .select("e").count().next();
 
         Assert.assertEquals(0L, direct);
+        Assert.assertEquals(direct, viaMatch);
+    }
+
+    @Test
+    public void testConnectiveLabelAfterNoIndexRangeMatchesMatchTraversal() {
+        this.initConnectiveRangeNoIndexSchema();
+
+        Vertex v1 = graph().addVertex(T.label, "vl1");
+        Vertex v2 = graph().addVertex(T.label, "vl1");
+        Vertex v3 = graph().addVertex(T.label, "vl1");
+        v1.addEdge("el2", v2, "ep4", 0.1F);
+        v1.addEdge("el2", v3, "ep4", 0.5F);
+        v1.addEdge("el3", v2, "ep4", 0.1F);
+        commitTx();
+
+        Assert.assertEquals(2L, graph().traversal().E()
+                                    .hasLabel("el2").count().next());
+
+        GraphTraversal<Edge, Long> directTraversal = graph().traversal().E()
+                                                           .has("ep4",
+                                                                P.lt(0.32696354F))
+                                                           .and(__.hasLabel("el2"))
+                                                           .count();
+        HugeGraphStep<?, ?> graphStep = applyAndGetGraphStep(directTraversal);
+        Assert.assertEquals(1, graphStep.getHasContainers().size());
+        Assert.assertEquals(T.label.getAccessor(),
+                            graphStep.getHasContainers().get(0).getKey());
+        Assert.assertTrue(hasRemainingHasStep(directTraversal, "ep4"));
+        long direct = directTraversal.next();
+        long viaMatch = graph().traversal().E()
+                             .has("ep4", P.lt(0.32696354F))
+                             .match(__.<Edge>as("start1")
+                                      .and(__.hasLabel("el2"))
+                                      .as("m1"))
+                             .<Edge>select("m1").count().next();
+
+        Assert.assertEquals(1L, direct);
         Assert.assertEquals(direct, viaMatch);
     }
 
