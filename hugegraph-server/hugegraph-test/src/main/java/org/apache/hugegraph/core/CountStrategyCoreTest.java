@@ -17,6 +17,7 @@
 
 package org.apache.hugegraph.core;
 
+import org.apache.hugegraph.exception.NoIndexException;
 import org.apache.hugegraph.schema.SchemaManager;
 import org.apache.hugegraph.testutil.Assert;
 import org.apache.hugegraph.traversal.optimize.HugeGraphStep;
@@ -331,6 +332,40 @@ public class CountStrategyCoreTest extends BaseCoreTest {
 
         Assert.assertEquals(1L, direct);
         Assert.assertEquals(direct, viaMatch);
+    }
+
+    @Test
+    public void testPropertyBeforeLabelNoIndexRangeStillThrows() {
+        this.initConnectiveRangeNoIndexSchema();
+
+        Vertex v1 = graph().addVertex(T.label, "vl1");
+        Vertex v2 = graph().addVertex(T.label, "vl1");
+        v1.addEdge("el2", v2, "ep4", 0.1F);
+        commitTx();
+
+        Assert.assertThrows(NoIndexException.class, () -> {
+            graph().traversal().E()
+                   .has("ep4", P.lt(0.32696354F))
+                   .hasLabel("el2")
+                   .count().next();
+        });
+    }
+
+    @Test
+    public void testNonLabelConnectiveAfterNoIndexRangeStillThrows() {
+        this.initConnectiveRangeNoIndexSchema();
+
+        Vertex v1 = graph().addVertex(T.label, "vl1");
+        Vertex v2 = graph().addVertex(T.label, "vl1");
+        v1.addEdge("el2", v2, "ep4", 0.1F);
+        commitTx();
+
+        Assert.assertThrows(NoIndexException.class, () -> {
+            graph().traversal().E()
+                   .has("ep4", P.lt(0.32696354F))
+                   .and(__.has("ep4", P.gt(0.0F)))
+                   .count().next();
+        });
     }
 
     @Test
