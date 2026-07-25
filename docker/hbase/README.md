@@ -158,7 +158,7 @@ After either path is up, run the shared tests below.
 
 - Base URL: `http://localhost:8080`
 - Graph target name: `hugegraph`
-- Storage backend: persistent (HBase/Cassandra/RocksDB)
+- Storage backend: persistent (HBase/RocksDB/HStore)
 
 ---
 

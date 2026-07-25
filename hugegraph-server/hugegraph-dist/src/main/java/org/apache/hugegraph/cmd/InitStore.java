@@ -18,12 +18,10 @@
 package org.apache.hugegraph.cmd;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import org.apache.commons.collections.map.MultiValueMap;
 import org.apache.hugegraph.HugeFactory;
 import org.apache.hugegraph.HugeGraph;
 import org.apache.hugegraph.auth.StandardAuthenticator;
@@ -48,17 +46,6 @@ public class InitStore {
     private static final int RETRIES = 10;
     // A shorter interval can cause initialization state mismatches
     private static final long RETRY_INTERVAL = 5000;
-
-    private static final MultiValueMap EXCEPTIONS = new MultiValueMap();
-
-    static {
-        EXCEPTIONS.put("OperationTimedOutException",
-                       "Timed out waiting for server response");
-        EXCEPTIONS.put("NoHostAvailableException",
-                       "All host(s) tried for query failed");
-        EXCEPTIONS.put("InvalidQueryException", "does not exist");
-        EXCEPTIONS.put("InvalidQueryException", "unconfigured table");
-    }
 
     public static void main(String[] args) throws Exception {
         E.checkArgument(args.length == 1,
@@ -132,30 +119,21 @@ public class InitStore {
     private static void initBackend(final HugeGraph graph)
             throws InterruptedException {
         int retries = RETRIES;
-        retry:
-        do {
+        while (true) {
             try {
                 graph.initBackend();
             } catch (Exception e) {
                 String clz = e.getClass().getSimpleName();
                 String message = e.getMessage();
-                if (EXCEPTIONS.containsKey(clz) && retries > 0) {
-                    @SuppressWarnings("unchecked")
-                    Collection<String> keywords = EXCEPTIONS.getCollection(clz);
-                    for (String keyword : keywords) {
-                        if (message.contains(keyword)) {
-                            LOG.info("Init failed with exception '{} : {}', " +
-                                     "retry  {}...",
-                                     clz, message, RETRIES - retries + 1);
-
-                            Thread.sleep(RETRY_INTERVAL);
-                            continue retry;
-                        }
-                    }
+                if (retries-- > 0) {
+                    LOG.info("Init failed with exception '{} : {}', retry {}...",
+                             clz, message, RETRIES - retries);
+                    Thread.sleep(RETRY_INTERVAL);
+                    continue;
                 }
                 throw e;
             }
-            break;
-        } while (retries-- > 0);
+            return;
+        }
     }
 }
