@@ -31,7 +31,7 @@ achieved through the powerful [Gremlin](https://tinkerpop.apache.org/gremlin.htm
 
 - **Schema Metadata Management**: VertexLabel, EdgeLabel, PropertyKey, and IndexLabel
 - **Multi-type Indexes**: Exact query, range query, and complex conditions combination query
-- **Plug-in Backend Store Framework**: Supports `RocksDB`, `HStore`, `HBase`, and `Memory`. Versions earlier than `1.7.0` included additional, now-removed backends.
+- **Plug-in Backend Store Framework**: Since `1.7.0`, supported backends are `RocksDB`, `HStore`, `HBase`, and `Memory`. Historical versions earlier than `1.7.0` also supported MySQL, PostgreSQL, Cassandra, ScyllaDB, and Palo.
 - **Big Data Integration**: Seamless integration with `Flink`/`Spark`/`HDFS`
 - **Complete Graph Ecosystem**: In/out-memory Graph Computing + Graph Visualization & Tools + Graph Learning & AI
 - **Dual Query Language Support**: [Gremlin](https://tinkerpop.apache.org/gremlin.html) (via [Apache TinkerPop 3](https://tinkerpop.apache.org/)) and [Cypher](https://en.wikipedia.org/wiki/Cypher_(query_language)) (OpenCypher)
