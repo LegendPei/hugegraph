@@ -31,7 +31,7 @@ achieved through the powerful [Gremlin](https://tinkerpop.apache.org/gremlin.htm
 
 - **Schema Metadata Management**: VertexLabel, EdgeLabel, PropertyKey, and IndexLabel
 - **Multi-type Indexes**: Exact query, range query, and complex conditions combination query
-- **Plug-in Backend Store Framework**: Mainly supports `RocksDB`/`HStore` + `HBase`; other backends available in [legacy versions](https://hugegraph.apache.org/docs/download/download/) ≤ `1.5.0` (MySQL/PostgreSQL/Cassandra...)
+- **Plug-in Backend Store Framework**: Supports `RocksDB`, `HStore`, `HBase`, and `Memory`. Versions earlier than `1.7.0` included additional, now-removed backends.
 - **Big Data Integration**: Seamless integration with `Flink`/`Spark`/`HDFS`
 - **Complete Graph Ecosystem**: In/out-memory Graph Computing + Graph Visualization & Tools + Graph Learning & AI
 - **Dual Query Language Support**: [Gremlin](https://tinkerpop.apache.org/gremlin.html) (via [Apache TinkerPop 3](https://tinkerpop.apache.org/)) and [Cypher](https://en.wikipedia.org/wiki/Cypher_(query_language)) (OpenCypher)
@@ -78,11 +78,11 @@ HugeGraph supports both **standalone** and **distributed** deployments:
              ┌────────────────────────────────┼────────────────────────────────┐
              │                                │                                │
 ┌────────────▼────────────┐   ┌───────────────▼───────────────┐   ┌───────────▼──────────┐
-│    Standalone Mode      │   │      Distributed Mode         │   │   Legacy Backends    │
-│  ┌───────────────────┐  │   │  ┌─────────────────────────┐  │   │      (≤v1.5)         │
-│  │      RocksDB      │  │   │  │     HugeGraph-PD        │  │   │  MySQL │ PostgreSQL  │
-│  │    (embedded)     │  │   │  │   (Raft, 3-5 nodes)     │  │   │  Cassandra           │
-│  └───────────────────┘  │   │  │      :8620/:8686        │  │   │  HBase (≤v1.7)       │
+│    Standalone Mode      │   │      Distributed Mode         │   │  Supported Backends  │
+│  ┌───────────────────┐  │   │  ┌─────────────────────────┐  │   │  RocksDB │ Memory    │
+│  │      RocksDB      │  │   │  │     HugeGraph-PD        │  │   │  HBase   │ HStore    │
+│  │    (embedded)     │  │   │  │   (Raft, 3-5 nodes)     │  │   │                    │
+│  └───────────────────┘  │   │  │      :8620/:8686        │  │   │                    │
 │                         │   │  └────────────┬────────────┘  │   └──────────────────────┘
 │  Use Case:              │   │               │               │
 │  Development/Testing    │   │  ┌────────────▼────────────┐  │
@@ -148,18 +148,19 @@ flowchart TB
             PD <--> STORE
         end
 
-        subgraph Legacy["Legacy Backends (≤v1.5)"]
-            MYSQL[(MySQL)]
-            PG[(PostgreSQL)]
-            CASS[(Cassandra)]
-            HBASE[(HBase, ≤v1.7)]
+        subgraph Backends["Supported Backends"]
+            HBASE[(HBase)]
+            HSTORE[(HStore)]
+            MEMORY[(Memory)]
         end
     end
 
     Clients --> Server
     CORE --> ROCKS
     CORE --> PD
-    CORE -.-> Legacy
+    CORE --> HBASE
+    CORE --> HSTORE
+    CORE --> MEMORY
 
     style Server fill:#e1f5ff
     style Distributed fill:#fff4e1
