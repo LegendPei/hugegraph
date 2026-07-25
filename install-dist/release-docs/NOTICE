@@ -1114,24 +1114,6 @@ BSD - Scala License
 
 ========================================================================
 
-cassandra NOTICE
-
-========================================================================
-
-Apache Cassandra
-Copyright 2009-2022 The Apache Software Foundation
-
-This product includes software developed by The Apache Software
-Foundation (http://www.apache.org/).
-
-Android Code
-Copyright 2005-2008 The Android Open Source Project
-This product includes software developed as part of
-The Android Open Source Project (http://source.android.com).
-
-
-========================================================================
-
 Groovy NOTICE
 
 ========================================================================
@@ -1757,28 +1739,6 @@ Components, which can be obtained at:
   * HOMEPAGE:
     * https://github.com/Polymer/polymer
 
-
-========================================================================
-
-postgres NOTICE
-
-========================================================================
-
-This product contains a modified portion of 'ASM', an open source
-Java Bytecode library, which can be obtained at:
-
-  * LICENSE:
-    * agent/src/main/resources/io/perfmark/agent/third_party/asm/LICENSE (BSD style License)
-  * HOMEPAGE:
-    * https://asm.ow2.io/
-
-
-PostgreSQL Database Management System
-(formerly known as Postgres, then as Postgres95)
-
-Portions Copyright (c) 1996-2023, PostgreSQL Global Development Group
-
-Portions Copyright (c) 1994, The Regents of the University of California
 
 ========================================================================
 
