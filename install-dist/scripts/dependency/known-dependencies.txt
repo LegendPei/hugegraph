@@ -44,8 +44,6 @@ byte-buddy-agent-1.10.5.jar
 byte-buddy-agent-1.11.6.jar
 caffeine-2.3.1.jar
 caffeine-2.5.6.jar
-cassandra-all-4.0.10.jar
-cassandra-driver-core-3.6.0.jar
 checker-compat-qual-2.5.5.jar
 checker-qual-2.0.0.jar
 checker-qual-3.12.0.jar
@@ -486,7 +484,6 @@ perfmark-api-0.23.0.jar
 perfmark-api-0.25.0.jar
 picocli-4.3.2.jar
 pinyin4j-2.5.0.jar
-postgresql-42.4.3.jar
 powermock-api-mockito2-2.0.0-RC.3.jar
 powermock-api-support-2.0.0-RC.3.jar
 powermock-classloading-base-2.0.0-RC.3.jar

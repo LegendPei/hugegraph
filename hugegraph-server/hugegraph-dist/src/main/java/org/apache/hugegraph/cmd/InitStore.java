@@ -44,9 +44,9 @@ public class InitStore {
 
     private static final Logger LOG = Log.logger(InitStore.class);
 
-    // 6~8 retries may be needed under high load for Cassandra backend
+    // Retries may be needed when backend initialization is under high load
     private static final int RETRIES = 10;
-    // Less than 5000 may cause mismatch exception with Cassandra backend
+    // A shorter interval can cause initialization state mismatches
     private static final long RETRY_INTERVAL = 5000;
 
     private static final MultiValueMap EXCEPTIONS = new MultiValueMap();
