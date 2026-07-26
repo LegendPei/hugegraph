@@ -31,7 +31,7 @@ achieved through the powerful [Gremlin](https://tinkerpop.apache.org/gremlin.htm
 
 - **Schema Metadata Management**: VertexLabel, EdgeLabel, PropertyKey, and IndexLabel
 - **Multi-type Indexes**: Exact query, range query, and complex conditions combination query
-- **Plug-in Backend Store Framework**: Since `1.7.0`, the maintained production backends are `RocksDB` and `HStore`; `HBase` remains available but is deprecated and planned for removal in 2.0. `Memory` is a test-only backend. Historical HugeGraph `≤1.5` releases support MySQL, PostgreSQL, Cassandra, ScyllaDB, and Palo. Their implementations are no longer in the current mainline, so users who need them must operate and maintain a compatible historical release themselves.
+- **Plug-in Backend Store Framework**: Since `1.7.0`, the maintained production backends are `RocksDB` and `HStore`; HBase is `legacy` and planned for removal in 2.0, while Memory is test-only. See the [backend evolution and historical compatibility guide](hugegraph-server/README.md#backend-evolution-and-compatibility) for `≤1.5` backends and self-maintenance guidance.
 - **Big Data Integration**: Seamless integration with `Flink`/`Spark`/`HDFS`
 - **Complete Graph Ecosystem**: In/out-memory Graph Computing + Graph Visualization & Tools + Graph Learning & AI
 - **Dual Query Language Support**: [Gremlin](https://tinkerpop.apache.org/gremlin.html) (via [Apache TinkerPop 3](https://tinkerpop.apache.org/)) and [Cypher](https://en.wikipedia.org/wiki/Cypher_(query_language)) (OpenCypher)
