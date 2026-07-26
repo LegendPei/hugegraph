@@ -30,18 +30,6 @@ DataStax) and the following individuals:
 
 ========================================================================
 
-airline NOTICE
-
-========================================================================
-
-Copyright Notices
-
-Copyright 2011 Dain Sundstrom <dain@iq80.com>
-Copyright 2010 Cedric Beust <cedric@beust.com>
-
-
-========================================================================
-
 animal-sniffer-annotations NOTICE
 
 ========================================================================
@@ -1056,23 +1044,6 @@ The Apache Software Foundation (http://www.apache.org/).
 
 ========================================================================
 
- Commons-math3 NOTICE
-
-========================================================================
-
-Apache Commons Math
-Copyright 2001-2015 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-This product includes software developed for Orekit by
-CS Systèmes d'Information (http://www.c-s.fr/)
-Copyright 2010-2012 CS Systèmes d'Information
-
-
-========================================================================
-
  Commons-text NOTICE
 
 ========================================================================
@@ -1444,18 +1415,6 @@ Copyright 2010 Cedric Beust <cedric@beust.com>
 
 ========================================================================
 
-jflex NOTICE
-
-========================================================================
-
-JFlex - Copying, Warranty & License
-
-Copyright (c) Gerwin Klein, Steve Rowe, Régis Décamps, Google LLC.
-All rights reserved.
-
-
-========================================================================
-
 junit NOTICE
 
 ========================================================================
@@ -1752,44 +1711,6 @@ All rights reserved.
 
 ========================================================================
 
-psjava NOTICE
-
-========================================================================
-
-Copyright (c) 2013 psjava authors
-
-
-========================================================================
-
-snappy-java NOTICE
-
-========================================================================
-
-This product includes software developed by Google
- Snappy: http://code.google.com/p/snappy/ (New BSD License)
-
-This product includes software developed by Apache
- PureJavaCrc32C from apache-hadoop-common http://hadoop.apache.org/
- (Apache 2.0 license)
-
-This library contains statically linked libstdc++. This inclusion is allowed by 
-"GCC Runtime Library Exception" 
-http://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html
-
-== Contributors ==
-  * Tatu Saloranta  
-    * Providing benchmark suite
-  * Alec Wysoker
-    * Performance and memory usage improvement
-
-Third-Party Notices and Licenses:
-
-- Hadoop: Apache Hadoop is used as a dependency
-  License: Apache License 2.0
-  Source/Reference: https://github.com/apache/hadoop/blob/trunk/NOTICE.txt
-
-========================================================================
-
 swagger NOTICE
 
 ========================================================================
@@ -1798,17 +1719,6 @@ Swagger Core - ${pom.name}
 Copyright (c) 2015. SmartBear Software Inc.
 Swagger Core - ${pom.name}  is licensed under Apache 2.0 license.
 Copy of the Apache 2.0 license can be found in `LICENSE` file.
-
-
-========================================================================
-
-zstd-jni NOTICE
-
-========================================================================
-
-Zstd-jni: JNI bindings to Zstd Library
-
-Copyright (c) 2015-present, Luben Karavelov/ All rights reserved.
 
 
 ========================================================================

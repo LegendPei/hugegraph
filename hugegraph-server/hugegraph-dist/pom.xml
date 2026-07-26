@@ -67,17 +67,6 @@
             <version>${revision}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.hugegraph</groupId>
-            <artifactId>hugegraph-hbase</artifactId>
-            <version>${revision}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.hugegraph</groupId>
-            <artifactId>hugegraph-hstore</artifactId>
-            <version>${revision}</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.apache.tinkerpop</groupId>
             <artifactId>gremlin-console</artifactId>
             <exclusions>
@@ -94,6 +83,11 @@
             <groupId>io.grpc</groupId>
             <artifactId>grpc-stub</artifactId>
             <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <!-- Added updated jar to avoid java.lang.NoClassDefFoundError: org/fusesource/jansi/AnsiConsole when launching
@@ -277,6 +271,26 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>supported-backends</id>
+            <activation>
+                <property>
+                    <name>!rocksdb-only</name>
+                </property>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.hugegraph</groupId>
+                    <artifactId>hugegraph-hbase</artifactId>
+                    <version>${revision}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.hugegraph</groupId>
+                    <artifactId>hugegraph-hstore</artifactId>
+                    <version>${revision}</version>
+                </dependency>
+            </dependencies>
+        </profile>
         <profile>
             <id>rocksdb-only</id>
             <activation>

@@ -42,11 +42,6 @@ public class InitStore {
 
     private static final Logger LOG = Log.logger(InitStore.class);
 
-    // Retries may be needed when backend initialization is under high load
-    private static final int RETRIES = 10;
-    // A shorter interval can cause initialization state mismatches
-    private static final long RETRY_INTERVAL = 5000;
-
     public static void main(String[] args) throws Exception {
         E.checkArgument(args.length == 1,
                         "HugeGraph init-store need to pass the config file " +
@@ -116,24 +111,8 @@ public class InitStore {
         return graph;
     }
 
-    private static void initBackend(final HugeGraph graph)
-            throws InterruptedException {
-        int retries = RETRIES;
-        while (true) {
-            try {
-                graph.initBackend();
-            } catch (Exception e) {
-                String clz = e.getClass().getSimpleName();
-                String message = e.getMessage();
-                if (retries-- > 0) {
-                    LOG.info("Init failed with exception '{} : {}', retry {}...",
-                             clz, message, RETRIES - retries);
-                    Thread.sleep(RETRY_INTERVAL);
-                    continue;
-                }
-                throw e;
-            }
-            return;
-        }
+    private static void initBackend(final HugeGraph graph) {
+        // Only explicitly transient backend failures can be retried safely
+        graph.initBackend();
     }
 }
