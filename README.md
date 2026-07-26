@@ -31,7 +31,7 @@ achieved through the powerful [Gremlin](https://tinkerpop.apache.org/gremlin.htm
 
 - **Schema Metadata Management**: VertexLabel, EdgeLabel, PropertyKey, and IndexLabel
 - **Multi-type Indexes**: Exact query, range query, and complex conditions combination query
-- **Plug-in Backend Store Framework**: Since `1.7.0`, supported backends are `RocksDB`, `HStore`, `HBase`, and `Memory`. Historical versions earlier than `1.7.0` also supported MySQL, PostgreSQL, Cassandra, ScyllaDB, and Palo.
+- **Plug-in Backend Store Framework**: Since `1.7.0`, the maintained production backends are `RocksDB` and `HStore`; `HBase` remains available but is deprecated and planned for removal in 2.0. `Memory` is a test-only backend. Historical HugeGraph `≤1.5` releases support MySQL, PostgreSQL, Cassandra, ScyllaDB, and Palo. Their implementations are no longer in the current mainline, so users who need them must operate and maintain a compatible historical release themselves.
 - **Big Data Integration**: Seamless integration with `Flink`/`Spark`/`HDFS`
 - **Complete Graph Ecosystem**: In/out-memory Graph Computing + Graph Visualization & Tools + Graph Learning & AI
 - **Dual Query Language Support**: [Gremlin](https://tinkerpop.apache.org/gremlin.html) (via [Apache TinkerPop 3](https://tinkerpop.apache.org/)) and [Cypher](https://en.wikipedia.org/wiki/Cypher_(query_language)) (OpenCypher)
@@ -77,13 +77,13 @@ HugeGraph supports both **standalone** and **distributed** deployments:
                                               │
              ┌────────────────────────────────┼────────────────────────────────┐
              │                                │                                │
-┌────────────▼────────────┐   ┌───────────────▼───────────────┐   ┌───────────▼──────────┐
-│    Standalone Mode      │   │      Distributed Mode         │   │  Supported Backends  │
-│  ┌───────────────────┐  │   │  ┌─────────────────────────┐  │   │  RocksDB │ Memory    │
-│  │      RocksDB      │  │   │  │     HugeGraph-PD        │  │   │  HBase   │ HStore    │
-│  │    (embedded)     │  │   │  │   (Raft, 3-5 nodes)     │  │   │                    │
-│  └───────────────────┘  │   │  │      :8620/:8686        │  │   │                    │
-│                         │   │  └────────────┬────────────┘  │   └──────────────────────┘
+┌────────────▼────────────┐   ┌───────────────▼───────────────┐
+│    Standalone Mode      │   │      Distributed Mode         │
+│  ┌───────────────────┐  │   │  ┌─────────────────────────┐  │
+│  │      RocksDB      │  │   │  │     HugeGraph-PD        │  │
+│  │    (embedded)     │  │   │  │   (Raft, 3-5 nodes)     │  │
+│  └───────────────────┘  │   │  │      :8620/:8686        │  │
+│                         │   │  └────────────┬────────────┘  │
 │  Use Case:              │   │               │               │
 │  Development/Testing    │   │  ┌────────────▼────────────┐  │
 │  Single Node            │   │  │    HugeGraph-Store      │  │
@@ -96,6 +96,20 @@ HugeGraph supports both **standalone** and **distributed** deployments:
                               │                               │
                               │  Data Scale: < 1000 TB        │
                               └───────────────────────────────┘
+
+                 ┌──────────────── Current Backends ────────────────────┐
+                 │ RocksDB (default, embedded) and HStore (distributed) │
+                 └──────────────────────────────────────────────────────┘
+                 ┌────────────── Deprecated Backend ────────────────────┐
+                 │ HBase (planned for removal in 2.0)                   │
+                 └──────────────────────────────────────────────────────┘
+                 ┌────────────── Test-only Backend ─────────────────────┐
+                 │ Memory                                               │
+                 └──────────────────────────────────────────────────────┘
+                 ┌──────────── Historical Backends (≤1.5) ──────────────┐
+                 │ MySQL, PostgreSQL, Cassandra, ScyllaDB, and Palo     │
+                 │ Use and maintain a compatible historical release.    │
+                 └──────────────────────────────────────────────────────┘
 ```
 
 ### Deployment Mode Comparison
@@ -148,19 +162,23 @@ flowchart TB
             PD <--> STORE
         end
 
-        subgraph Backends["Supported Backends"]
-            HBASE[(HBase)]
-            HSTORE[(HStore)]
-            MEMORY[(Memory)]
+        subgraph Backends["Current Backends"]
+            HSTORE[(HStore<br/>Distributed)]
+        end
+
+        subgraph Deprecated["Deprecated Backend"]
+            HBASE[(HBase<br/>Planned for removal in 2.0)]
         end
     end
+
+    MEMORY[(Memory<br/>Test-only)]
+    HISTORY["Historical Backends (≤1.5)<br/>MySQL, PostgreSQL, Cassandra, ScyllaDB, Palo<br/>Use and maintain a compatible historical release"]
 
     Clients --> Server
     CORE --> ROCKS
     CORE --> PD
     CORE --> HBASE
     CORE --> HSTORE
-    CORE --> MEMORY
 
     style Server fill:#e1f5ff
     style Distributed fill:#fff4e1

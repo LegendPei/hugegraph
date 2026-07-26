@@ -8,7 +8,7 @@ HugeGraph Server consists of two layers of functionality: the graph engine layer
   - Backend Interface: Implements the storage of graph data to the backend.
 
 - Storage Layer:
-  - Storage Backend: Supports multiple built-in storage backends (RocksDB/Memory/HStore/HBase/...) and allows users to extend custom backends without modifying the existing source code.
+  - Storage Backend: Includes RocksDB (default, embedded), HStore (distributed), HBase (deprecated and planned for removal in 2.0), and the test-only Memory backend. Users can extend custom backends without modifying the existing source code.
 
 ## Docker
 

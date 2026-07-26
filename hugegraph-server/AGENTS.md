@@ -8,7 +8,7 @@ HugeGraph Server is the graph engine layer of Apache HugeGraph, consisting of:
 - **REST API Layer** (hugegraph-api): RESTful APIs for graph operations, Gremlin/Cypher queries, schema management, and authentication
 - **Graph Engine Layer** (hugegraph-core): TinkerPop 3 implementation, schema management, traversal optimization, task scheduling
 - **Backend Interface**: Abstraction layer for pluggable storage backends
-- **Storage Backend Implementations**: RocksDB (default), HStore (distributed), HBase, and Memory
+- **Storage Backend Implementations**: RocksDB (default), HStore (distributed), HBase (deprecated; planned for removal in 2.0), and Memory (test-only)
 
 Technology: Java 11+, Maven 3.5+, Apache TinkerPop 3.5.1, Jersey 3.0 (REST), gRPC (distributed communication)
 
@@ -49,7 +49,7 @@ mvn checkstyle:check
 **Backend profiles** (combine with test profiles):
 - `memory`: In-memory backend (default for tests)
 - `rocksdb`: RocksDB backend
-- `hbase`: HBase backend
+- `hbase`: HBase backend (deprecated; planned for removal in 2.0)
 - `hstore`: HStore backend
 
 ```bash
@@ -86,7 +86,7 @@ hugegraph-server/
 ├── hugegraph-api           # REST API, Gremlin/Cypher endpoints, authentication
 ├── hugegraph-rocksdb       # RocksDB backend (default, embedded)
 ├── hugegraph-hstore        # HStore backend (distributed, production)
-├── hugegraph-hbase         # HBase backend
+├── hugegraph-hbase         # HBase backend (deprecated; planned for removal in 2.0)
 ├── hugegraph-dist          # Distribution packaging, scripts, configs
 ├── hugegraph-test          # All test suites
 └── hugegraph-example       # Example code
