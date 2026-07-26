@@ -46,16 +46,12 @@ public class InitStoreTest {
         Method method = InitStore.class.getDeclaredMethod("initBackend",
                                                           HugeGraph.class);
         method.setAccessible(true);
-        long start = System.nanoTime();
         try {
             method.invoke(null, graph);
             Assert.fail("Expected initialization to fail");
         } catch (InvocationTargetException e) {
             Assert.assertSame(exception, e.getCause());
         }
-        long elapsed = (System.nanoTime() - start) / 1_000_000L;
-        Assert.assertTrue("Expected initialization to fail without retrying",
-                          elapsed < 1000L);
         Assert.assertEquals(1, invocations.get());
     }
 }

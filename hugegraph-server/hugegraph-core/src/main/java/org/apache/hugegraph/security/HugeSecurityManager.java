@@ -63,9 +63,7 @@ public class HugeSecurityManager extends SecurityManager {
             "line.separator",
             "file.separator",
             // Sofa
-            "java.specification.version",
-            "socksProxyHost",
-            "file.encoding"
+            "java.specification.version"
     );
 
     private static final Map<String, Set<String>> ASYNC_TASKS = ImmutableMap.of(
