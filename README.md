@@ -57,28 +57,45 @@ Complete **HugeGraph** ecosystem components:
 HugeGraph supports both **standalone** and **distributed** deployments:
 
 ```
-                            ┌─────────────────────────────────────┐
-                            │            Client Layer             │
-                            │ Gremlin Console · REST API · Cypher │
-                            │             SDK / Tools             │
-                            └──────────────────┬──────────────────┘
-                                               │
-                              ┌────────────────▼────────────────┐
-                              │    HugeGraph Server (:8080)     │
-                              │ REST API · Gremlin · Cypher     │
-                              │      Graph Engine (Core)        │
-                              └────────────────┬────────────────┘
-                                               │
-                         ┌─────────────────────┴─────────────────────┐
-                         │                                           │
-              ┌──────────▼──────────┐                     ┌──────────▼───────────┐
-              │   Standalone Mode   │                     │   Distributed Mode   │
-              │      RocksDB        │                     │ HugeGraph-PD + HStore│
-              │ default · embedded  │                     │     Raft cluster     │
-              │                     │                     │                      │
-              │ development/testing │                     │ production / HA      │
-              │ single node · < 1TB │                     │ cluster · < 1000 TB  │
-              └─────────────────────┘                     └──────────────────────┘
+                        ┌─────────────────────────────────────────────────────┐
+                        │                    Client Layer                     │
+                        │  Gremlin Console │ REST API │ Cypher │ SDK/Tools    │
+                        └─────────────────────────┬───────────────────────────┘
+                                                  │
+                        ┌─────────────────────────▼───────────────────────────┐
+                        │             HugeGraph Server (:8080)                │
+                        │  ┌──────────┐  ┌──────────┐  ┌──────────────────┐   │
+                        │  │ REST API │  │ Gremlin  │  │   Cypher Engine  │   │
+                        │  │(Jersey 3)│  │ (TP 3.5) │  │   (OpenCypher)   │   │
+                        │  └────┬─────┘  └────┬─────┘  └────────┬─────────┘   │
+                        │       └─────────────┼─────────────────┘             │
+                        │            ┌────────▼────────┐                      │
+                        │            │  Graph Engine   │                      │
+                        │            │(hugegraph-core) │                      │
+                        │            └────────┬────────┘                      │
+                        └─────────────────────┼───────────────────────────────┘
+                                              │
+                            ┌─────────────────┴─────────────────┐
+                            │                                   │
+             ┌──────────────▼──────────────┐     ┌──────────────▼──────────────┐
+             │        Standalone Mode      │     │       Distributed Mode      │
+             │  ┌───────────────────────┐  │     │  ┌───────────────────────┐  │
+             │  │        RocksDB        │  │     │  │     HugeGraph-PD      │  │
+             │  │      (embedded)       │  │     │  │   (Raft, 3-5 nodes)   │  │
+             │  └───────────────────────┘  │     │  │      :8620/:8686      │  │
+             │                             │     │  └───────────┬───────────┘  │
+             │  Use Case:                  │     │              │              │
+             │  Development/Testing        │     │  ┌───────────▼───────────┐  │
+             │  Single Node                │     │  │         HStore        │  │
+             │                             │     │  │    (Raft, 3+ nodes)   │  │
+             │  Data Scale: < 1TB          │     │  │         :8520         │  │
+             └─────────────────────────────┘     │  └───────────────────────┘  │
+                                                 │                             │
+                                                 │  Use Case:                  │
+                                                 │  Production/HA/Cluster      │
+                                                 │                             │
+                                                 │  Data Scale: < 1000 TB      │
+                                                 └─────────────────────────────┘
 ```
 
 See the [backend evolution guide](hugegraph-server/README.md#backend-evolution-and-compatibility) for lifecycle and historical compatibility guidance.
