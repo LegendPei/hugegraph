@@ -808,11 +808,13 @@ public class ConditionQuery extends IdQuery {
 
         private final Map<Id, Set<LeftIndex>> leftIndexMap;
         private final Map<Id, Map<Id, Set<Object>>> filed2IndexValues;
+        private final Map<Id, Map<Id, Boolean>> element2RangeIndexMatches;
         private Id selectedIndexField;
 
         public Element2IndexValueMap() {
             this.filed2IndexValues = new HashMap<>();
             this.leftIndexMap = new HashMap<>();
+            this.element2RangeIndexMatches = new HashMap<>();
         }
 
         public void addIndexValue(Id indexField, Id elementId,
@@ -875,11 +877,17 @@ public class ConditionQuery extends IdQuery {
                 return true;
             }
 
+            Map<Id, Boolean> propertyMatches =
+                    this.element2RangeIndexMatches.get(element.id());
+            if (propertyMatches != null && propertyMatches.containsKey(propId)) {
+                return propertyMatches.get(propId);
+            }
+
             HugeProperty<Object> property = element.getProperty(propId);
             if (property == null) {
                 // Property value has been deleted, so it's not matched
                 this.addLeftIndex(element.id(), propId, fieldValues);
-                return false;
+                return this.cacheRangeIndexMatch(element.id(), propId, false);
             }
 
             /*
@@ -900,10 +908,20 @@ public class ConditionQuery extends IdQuery {
              * the element is valid or not.
              */
             if (this.selectedIndexField != null) {
-                return !propId.equals(this.selectedIndexField) || hasRightValue;
+                hasRightValue = !propId.equals(this.selectedIndexField) ||
+                                hasRightValue;
             }
 
-            return hasRightValue;
+            return this.cacheRangeIndexMatch(element.id(), propId,
+                                             hasRightValue);
+        }
+
+        private boolean cacheRangeIndexMatch(Id elementId, Id propertyId,
+                                             boolean matched) {
+            this.element2RangeIndexMatches
+                    .computeIfAbsent(elementId, id -> new HashMap<>())
+                    .put(propertyId, matched);
+            return matched;
         }
 
         private static boolean removeFieldValue(Set<Object> values,
