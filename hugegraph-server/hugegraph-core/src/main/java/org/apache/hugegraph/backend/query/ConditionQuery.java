@@ -877,12 +877,6 @@ public class ConditionQuery extends IdQuery {
                 return true;
             }
 
-            Map<Id, Boolean> propertyMatches =
-                    this.element2RangeIndexMatches.get(element.id());
-            if (propertyMatches != null && propertyMatches.containsKey(propId)) {
-                return propertyMatches.get(propId);
-            }
-
             HugeProperty<Object> property = element.getProperty(propId);
             if (property == null) {
                 // Property value has been deleted, so it's not matched
@@ -895,8 +889,13 @@ public class ConditionQuery extends IdQuery {
              * else we should add left-index values to left index map to
              * wait the left-index to be removed.
              */
-            boolean hasRightValue = removeFieldValue(fieldValues,
-                                                     property.value());
+            /*
+             * Index values are recorded batch by batch. Keep a previous
+             * match for repeated predicates, but don't skip processing newly
+             * recorded values, otherwise left indexes can't be removed.
+             */
+            boolean hasRightValue = this.rangeIndexMatched(element.id(), propId);
+            hasRightValue |= removeFieldValue(fieldValues, property.value());
             if (!fieldValues.isEmpty()) {
                 this.addLeftIndex(element.id(), propId, fieldValues);
             }
@@ -914,6 +913,13 @@ public class ConditionQuery extends IdQuery {
 
             return this.cacheRangeIndexMatch(element.id(), propId,
                                              hasRightValue);
+        }
+
+        private boolean rangeIndexMatched(Id elementId, Id propertyId) {
+            Map<Id, Boolean> propertyMatches =
+                    this.element2RangeIndexMatches.get(elementId);
+            return propertyMatches != null &&
+                   propertyMatches.getOrDefault(propertyId, false);
         }
 
         private boolean cacheRangeIndexMatch(Id elementId, Id propertyId,
