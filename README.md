@@ -31,7 +31,7 @@ achieved through the powerful [Gremlin](https://tinkerpop.apache.org/gremlin.htm
 
 - **Schema Metadata Management**: VertexLabel, EdgeLabel, PropertyKey, and IndexLabel
 - **Multi-type Indexes**: Exact query, range query, and complex conditions combination query
-- **Plug-in Backend Store Framework**: Since `1.7.0`, the maintained production backends are `RocksDB` and `HStore`; HBase is `legacy` and planned for removal in 2.0, while Memory is test-only. See the [backend evolution and historical compatibility guide](hugegraph-server/README.md#backend-evolution-and-compatibility) for `≤1.5` backends and self-maintenance guidance.
+- **Plug-in Backend Store Framework**: RocksDB powers standalone deployments and HStore powers distributed clusters. See the [backend evolution guide](hugegraph-server/README.md#backend-evolution-and-compatibility) for compatibility details.
 - **Big Data Integration**: Seamless integration with `Flink`/`Spark`/`HDFS`
 - **Complete Graph Ecosystem**: In/out-memory Graph Computing + Graph Visualization & Tools + Graph Learning & AI
 - **Dual Query Language Support**: [Gremlin](https://tinkerpop.apache.org/gremlin.html) (via [Apache TinkerPop 3](https://tinkerpop.apache.org/)) and [Cypher](https://en.wikipedia.org/wiki/Cypher_(query_language)) (OpenCypher)
@@ -57,67 +57,38 @@ Complete **HugeGraph** ecosystem components:
 HugeGraph supports both **standalone** and **distributed** deployments:
 
 ```
-                        ┌─────────────────────────────────────────────────────┐
-                        │                    Client Layer                     │
-                        │  Gremlin Console │ REST API │ Cypher │ SDK/Tools    │
-                        └─────────────────────────┬───────────────────────────┘
-                                                  │
-                        ┌─────────────────────────▼───────────────────────────┐
-                        │             HugeGraph Server (:8080)                │
-                        │  ┌──────────┐  ┌──────────┐  ┌──────────────────┐   │
-                        │  │ REST API │  │ Gremlin  │  │   Cypher Engine  │   │
-                        │  │(Jersey 3)│  │ (TP 3.5) │  │   (OpenCypher)   │   │
-                        │  └────┬─────┘  └────┬─────┘  └────────┬─────────┘   │
-                        │       └─────────────┼─────────────────┘             │
-                        │            ┌────────▼────────┐                      │
-                        │            │  Graph Engine   │                      │
-                        │            │(hugegraph-core) │                      │
-                        │            └────────┬────────┘                      │
-                        └─────────────────────┼───────────────────────────────┘
-                                              │
-             ┌────────────────────────────────┼────────────────────────────────┐
-             │                                │                                │
-┌────────────▼────────────┐   ┌───────────────▼───────────────┐
-│    Standalone Mode      │   │      Distributed Mode         │
-│  ┌───────────────────┐  │   │  ┌─────────────────────────┐  │
-│  │      RocksDB      │  │   │  │     HugeGraph-PD        │  │
-│  │    (embedded)     │  │   │  │   (Raft, 3-5 nodes)     │  │
-│  └───────────────────┘  │   │  │      :8620/:8686        │  │
-│                         │   │  └────────────┬────────────┘  │
-│  Use Case:              │   │               │               │
-│  Development/Testing    │   │  ┌────────────▼────────────┐  │
-│  Single Node            │   │  │    HugeGraph-Store      │  │
-│                         │   │  │    (Raft + RocksDB)     │  │
-│  Data Scale: < 1TB      │   │  │   (3+ nodes) :8520      │  │
-└─────────────────────────┘   │  └─────────────────────────┘  │
-                              │                               │
-                              │  Use Case:                    │
-                              │  Production/HA/Cluster        │
-                              │                               │
-                              │  Data Scale: < 1000 TB        │
-                              └───────────────────────────────┘
-
-                 ┌──────────────── Current Backends ────────────────────┐
-                 │ RocksDB (default, embedded) and HStore (distributed) │
-                 └──────────────────────────────────────────────────────┘
-                 ┌────────────── Deprecated Backend ────────────────────┐
-                 │ HBase (planned for removal in 2.0)                   │
-                 └──────────────────────────────────────────────────────┘
-                 ┌────────────── Test-only Backend ─────────────────────┐
-                 │ Memory                                               │
-                 └──────────────────────────────────────────────────────┘
-                 ┌──────────── Historical Backends (≤1.5) ──────────────┐
-                 │ MySQL, PostgreSQL, Cassandra, ScyllaDB, and Palo     │
-                 │ Use and maintain a compatible historical release.    │
-                 └──────────────────────────────────────────────────────┘
+                            ┌─────────────────────────────────────┐
+                            │            Client Layer             │
+                            │ Gremlin Console · REST API · Cypher │
+                            │             SDK / Tools             │
+                            └──────────────────┬──────────────────┘
+                                               │
+                              ┌────────────────▼────────────────┐
+                              │    HugeGraph Server (:8080)     │
+                              │ REST API · Gremlin · Cypher     │
+                              │      Graph Engine (Core)        │
+                              └────────────────┬────────────────┘
+                                               │
+                         ┌─────────────────────┴─────────────────────┐
+                         │                                           │
+              ┌──────────▼──────────┐                     ┌──────────▼───────────┐
+              │   Standalone Mode   │                     │   Distributed Mode   │
+              │      RocksDB        │                     │ HugeGraph-PD + HStore│
+              │ default · embedded  │                     │     Raft cluster     │
+              │                     │                     │                      │
+              │ development/testing │                     │ production / HA      │
+              │ single node · < 1TB │                     │ cluster · < 1000 TB  │
+              └─────────────────────┘                     └──────────────────────┘
 ```
+
+See the [backend evolution guide](hugegraph-server/README.md#backend-evolution-and-compatibility) for lifecycle and historical compatibility guidance.
 
 ### Deployment Mode Comparison
 
 | Mode | Components | Use Case | Data Scale | High Availability |
 |------|------------|----------|------------|-------------------|
 | **Standalone** | Server + RocksDB | Development, Testing, Single Node | < 1TB | Basic |
-| **Distributed** | Server + PD (3-5 nodes) + Store (3+ nodes) | Production, HA, Horizontal Scaling | < 1000 TB | Yes |
+| **Distributed** | Server + PD + HStore | Production, HA, Horizontal Scaling | < 1000 TB | Yes |
 
 ### Module Overview
 
@@ -133,12 +104,7 @@ HugeGraph supports both **standalone** and **distributed** deployments:
 
 ```mermaid
 flowchart TB
-    subgraph Clients["Client Layer"]
-        GC[Gremlin Console]
-        REST[REST Client]
-        CYPHER[Cypher Client]
-        SDK[SDK/Tools]
-    end
+    CLIENTS["Client Layer<br/>Gremlin Console · REST Client · Cypher Client · SDK/Tools"]
 
     subgraph Server["HugeGraph Server :8080"]
         API[REST API<br/>Jersey 3]
@@ -157,28 +123,13 @@ flowchart TB
         end
 
         subgraph Distributed["Distributed Mode"]
-            PD[HugeGraph-PD<br/>Raft Cluster<br/>:8620/:8686]
-            STORE[HugeGraph-Store<br/>Raft + RocksDB<br/>:8520]
-            PD <--> STORE
-        end
-
-        subgraph Backends["Current Backends"]
-            HSTORE[(HStore<br/>Distributed)]
-        end
-
-        subgraph Deprecated["Deprecated Backend"]
-            HBASE[(HBase<br/>Planned for removal in 2.0)]
+            PD_HSTORE[PD + HStore<br/>Raft Cluster]
         end
     end
 
-    MEMORY[(Memory<br/>Test-only)]
-    HISTORY["Historical Backends (≤1.5)<br/>MySQL, PostgreSQL, Cassandra, ScyllaDB, Palo<br/>Use and maintain a compatible historical release"]
-
-    Clients --> Server
+    CLIENTS --> Server
     CORE --> ROCKS
-    CORE --> PD
-    CORE --> HBASE
-    CORE --> HSTORE
+    CORE --> PD_HSTORE
 
     style Server fill:#e1f5ff
     style Distributed fill:#fff4e1
