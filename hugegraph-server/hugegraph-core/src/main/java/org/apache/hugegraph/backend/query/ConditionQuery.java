@@ -631,10 +631,12 @@ public class ConditionQuery extends IdQuery {
          * so don't break early even if test() return false.
          */
         boolean valid = true;
+        Map<Id, Boolean> rangeIndexMatches = new HashMap<>();
         for (Condition cond : this.conditions) {
             valid &= cond.test(element);
             valid &= this.element2IndexValueMap == null ||
-                     this.element2IndexValueMap.checkRangeIndex(element, cond);
+                     this.element2IndexValueMap.checkRangeIndex(element, cond,
+                                                                rangeIndexMatches);
         }
         return valid;
     }
@@ -808,13 +810,11 @@ public class ConditionQuery extends IdQuery {
 
         private final Map<Id, Set<LeftIndex>> leftIndexMap;
         private final Map<Id, Map<Id, Set<Object>>> filed2IndexValues;
-        private final Map<Id, Map<Id, Boolean>> element2RangeIndexMatches;
         private Id selectedIndexField;
 
         public Element2IndexValueMap() {
             this.filed2IndexValues = new HashMap<>();
             this.leftIndexMap = new HashMap<>();
-            this.element2RangeIndexMatches = new HashMap<>();
         }
 
         public void addIndexValue(Id indexField, Id elementId,
@@ -861,7 +861,8 @@ public class ConditionQuery extends IdQuery {
             this.leftIndexMap.remove(elementId);
         }
 
-        public boolean checkRangeIndex(HugeElement element, Condition cond) {
+        public boolean checkRangeIndex(HugeElement element, Condition cond,
+                                       Map<Id, Boolean> rangeIndexMatches) {
             // Not UserpropRelation
             if (!(cond instanceof Condition.UserpropRelation)) {
                 return true;
@@ -877,11 +878,16 @@ public class ConditionQuery extends IdQuery {
                 return true;
             }
 
+            if (rangeIndexMatches.containsKey(propId)) {
+                return rangeIndexMatches.get(propId);
+            }
+
             HugeProperty<Object> property = element.getProperty(propId);
             if (property == null) {
                 // Property value has been deleted, so it's not matched
                 this.addLeftIndex(element.id(), propId, fieldValues);
-                return this.cacheRangeIndexMatch(element.id(), propId, false);
+                return this.cacheRangeIndexMatch(rangeIndexMatches, propId,
+                                                 false);
             }
 
             /*
@@ -889,13 +895,8 @@ public class ConditionQuery extends IdQuery {
              * else we should add left-index values to left index map to
              * wait the left-index to be removed.
              */
-            /*
-             * Index values are recorded batch by batch. Keep a previous
-             * match for repeated predicates, but don't skip processing newly
-             * recorded values, otherwise left indexes can't be removed.
-             */
-            boolean hasRightValue = this.rangeIndexMatched(element.id(), propId);
-            hasRightValue |= removeFieldValue(fieldValues, property.value());
+            boolean hasRightValue = removeFieldValue(fieldValues,
+                                                     property.value());
             if (!fieldValues.isEmpty()) {
                 this.addLeftIndex(element.id(), propId, fieldValues);
             }
@@ -911,22 +912,14 @@ public class ConditionQuery extends IdQuery {
                                 hasRightValue;
             }
 
-            return this.cacheRangeIndexMatch(element.id(), propId,
+            return this.cacheRangeIndexMatch(rangeIndexMatches, propId,
                                              hasRightValue);
         }
 
-        private boolean rangeIndexMatched(Id elementId, Id propertyId) {
-            Map<Id, Boolean> propertyMatches =
-                    this.element2RangeIndexMatches.get(elementId);
-            return propertyMatches != null &&
-                   propertyMatches.getOrDefault(propertyId, false);
-        }
-
-        private boolean cacheRangeIndexMatch(Id elementId, Id propertyId,
+        private boolean cacheRangeIndexMatch(Map<Id, Boolean> rangeIndexMatches,
+                                             Id propertyId,
                                              boolean matched) {
-            this.element2RangeIndexMatches
-                    .computeIfAbsent(elementId, id -> new HashMap<>())
-                    .put(propertyId, matched);
+            rangeIndexMatches.put(propertyId, matched);
             return matched;
         }
 
