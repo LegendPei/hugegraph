@@ -629,14 +629,18 @@ public class ConditionQuery extends IdQuery {
         /*
          * NOTE: seems need to keep call checkRangeIndex() for each condition,
          * so don't break early even if test() return false.
-         */
+        */
         boolean valid = true;
-        Map<Id, Boolean> rangeIndexMatches = new HashMap<>();
+        Map<Id, Boolean> rangeIndexMatches = null;
+        if (this.element2IndexValueMap != null) {
+            rangeIndexMatches = new HashMap<>();
+        }
         for (Condition cond : this.conditions) {
             valid &= cond.test(element);
-            valid &= this.element2IndexValueMap == null ||
-                     this.element2IndexValueMap.checkRangeIndex(element, cond,
-                                                                rangeIndexMatches);
+            if (this.element2IndexValueMap != null) {
+                valid &= this.element2IndexValueMap.checkRangeIndex(
+                         element, cond, rangeIndexMatches);
+            }
         }
         return valid;
     }
